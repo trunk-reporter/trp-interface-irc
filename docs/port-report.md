@@ -190,3 +190,20 @@ a reconnect while listening; several systems.
   −0.69 and −0.48).
 
 **After the round (controller):** when exactly one talkgroup is wanted (channel mode, or a mode whose set has one entry), the page asks the recorder for that talkgroup alone (`listen({ system, talkgroup })`) instead of everything; with several, it still listens to everything and drops the rest. Checked against the recorder with a plain socket: a filtered listen on one talkgroup returned that talkgroup's frames only.
+
+## Round 3: stable tree, unread, name sync (0.4.0)
+
+Spec `docs/superpowers/specs/2026-11-05-tree-unread-name-sync-design.md`, plan
+`docs/superpowers/plans/2026-11-05-tree-unread-name-sync.md`.
+
+- **Tree:** groups are open or closed (`irc_groups`), not shown by activity; counts on labels; ⊞ / ⊟.
+- **Unread:** section above the groups (`unread.js`), Read All, Alt+Up/Down, `(N) Radio IRC` tab title.
+- **Name sync:** `access: listen` (control granted on the Interfaces page). Channel rename `rec.setTalkgroup`; radio rename uses `rec.setUnitName`
+  (recorder 0.3.1+, where unit names are store rows; writes serialized, confirmed by `unitNameEdited`).
+  `talkgroupEdited` / `unitNameEdited` / `config` bring other clients' names in, and win over names kept here. `/sync
+  on|off|status|push|pull confirm`, a SYNC button, kept in `irc_sync`.
+- **Tests:** `node --test 'test/*.test.mjs'` (unread.js tests). The page itself is checked
+  by syntax only here; see the deploy notes for what was and wasn't run against a recorder.
+- **Concerns:** control access lets anyone reaching the interface's port edit names and config; a
+  system's `unitNames.mode` of `ota` or `none` can hide a written name; `hasControl` is inferred from
+  `hello.configPath`.
