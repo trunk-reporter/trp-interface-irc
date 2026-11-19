@@ -246,6 +246,23 @@ body::after {
   user-select: none;
 }
 .tree-search-clear.visible { visibility: visible; }
+/* Global transcript search panel */
+.gs-box { border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.gs-input { display: block; width: calc(100% - 16px); margin: 3px 8px; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 3px; color: var(--text);
+  font-family: inherit; font-size: 12px; padding: 2px 6px; outline: none; }
+.gs-input:focus { border-color: var(--irc-info); }
+.gs-input::placeholder { color: var(--text-faint); }
+.gs-panel { max-height: 40vh; overflow-y: auto; font-size: 12px; border-top: 1px solid var(--border); }
+.gs-panel[hidden] { display: none; }
+.gs-note { padding: 4px 8px; color: var(--text-muted); }
+.gs-hit { display: flex; gap: 4px; align-items: flex-start; padding: 3px 8px; cursor: pointer; border-bottom: 1px solid var(--border); }
+.gs-hit:hover { background: var(--bg); }
+.gs-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gs-meta { color: var(--text-muted); font-size: 11px; }
+.gs-snip b { color: var(--irc-info); }
+.gs-play { flex-shrink: 0; }
+.gs-more { display: block; margin: 4px 8px; }
 .tree-btn {
   background: none;
   border: 1px solid var(--border);
@@ -1161,6 +1178,7 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
   .tree-header-row { gap: 8px; min-height: 48px; }
   .read-all-btn { min-height: 36px; padding: 0 10px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
   .tree-search-input { font-size: 16px; height: 40px; }
+  .gs-input { font-size: 16px; height: 40px; }
   .tree-btn { min-width: 40px; min-height: 40px; font-size: 16px; }
   .tree-section-label { min-height: 40px; display: flex; align-items: center; font-size: 13px; }
   .channel-item { min-height: 42px; font-size: 15px; padding: 0 4px 0 16px; gap: 6px; }
@@ -1290,6 +1308,11 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
       <button class="tree-btn" id="tree-expand" title="Expand all groups">⊞</button>
       <button class="tree-btn" id="tree-collapse" title="Collapse all groups">⊟</button>
     </div>
+    <div class="gs-box" id="search-box">
+      <input class="gs-input" id="global-search" type="text"
+             placeholder="Search transcripts..." spellcheck="false" autocomplete="off">
+      <div class="gs-panel" id="search-panel" hidden><div id="search-results"></div></div>
+    </div>
     <div class="tree-scroll" id="tree-scroll"></div>
     <div class="tree-status" id="tree-status">
       <span class="dot connecting"></span>Connecting...
@@ -1399,6 +1422,7 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
 // The recorder's own client library, served by the recorder on this port.
 import { TrunkClient, LivePlayer, systemName } from "/api/client.js";
 import { unreadList, stepUnread, tabTitle } from "./unread.js";
+import { createSearch, safeSnippet } from "./search.js";
 import { talkerParts, talkersText } from "./talkers.js";
 
 // ══════════════════════════════════════════════════════════════
@@ -1792,6 +1816,71 @@ treeSearchClear.addEventListener('click', () => {
   treeSearchClear.classList.remove('visible');
   renderTree();
 });
+
+// ── Global transcript search (separate from the channel filter above) ──
+const gsInput = document.getElementById('global-search');
+const gsPanel = document.getElementById('search-panel');
+const gsResults = document.getElementById('search-results');
+const gsEngine = createSearch((p, s) => fetchTranscribe(p, s));
+let gsTimer = 0, gsHits = [], gsSeq = 0;
+function gsNote(html) { gsResults.innerHTML = `<div class="gs-note">${html}</div>`; }
+function gsRender(st, q) {
+  gsHits = st.hits;
+  gsResults.textContent = '';
+  if (!st.hits.length) { gsNote(`No matches for "${esc(q)}"` + (st.failed ? ` (${st.failed} variant(s) failed)` : '')); return; }
+  if (st.failed) { const n = document.createElement('div'); n.className = 'gs-note'; n.textContent = `${st.failed} variant(s) failed`; gsResults.appendChild(n); }
+  st.hits.forEach((h, i) => {
+    const chName = resolveChannel(h.system, h.talkgroup) || `${h.system}/${h.talkgroup}`;
+    const row = document.createElement('div'); row.className = 'gs-hit'; row.dataset.i = i;
+    const play = document.createElement('button'); play.className = 'tree-btn gs-play'; play.textContent = '▶'; play.title = 'Play';
+    play.addEventListener('click', e => { e.stopPropagation(); playCall(h.path, null, resolveChannel(h.system, h.talkgroup), null, null, null); });
+    const body = document.createElement('div'); body.className = 'gs-body';
+    const meta = document.createElement('div'); meta.className = 'gs-meta'; meta.textContent = `${chName} · ${ts(new Date(h.startMs))}`;
+    const snip = document.createElement('div'); snip.className = 'gs-snip'; snip.innerHTML = safeSnippet(h.snippet);
+    body.append(meta, snip); row.append(play, body);
+    row.addEventListener('click', () => {
+      const ch = resolveChannel(h.system, h.talkgroup);
+      if (ch && channels.has(ch)) switchChannel(ch);
+      else { snip.textContent = h.text || ''; }  // unknown channel: just show the transcript
+    });
+    gsResults.appendChild(row);
+  });
+  if (st.hasMore) {
+    const b = document.createElement('button'); b.className = 'tree-btn gs-more'; b.textContent = 'Load more';
+    b.addEventListener('click', () => gsMore(q));
+    gsResults.appendChild(b);
+  }
+}
+async function gsGuard(p, q, seq) {
+  try {
+    const st = await p;
+    if (st && seq === gsSeq) gsRender(st, q);
+  } catch (e) {
+    if (seq === gsSeq) gsNote(`Search failed: ${esc(e && e.message || e)}`);
+  }
+}
+function gsRun() {
+  clearTimeout(gsTimer);
+  const q = gsInput.value.trim();
+  const seq = ++gsSeq;
+  if (!q) { gsEngine.cancel(); gsHits = []; gsPanel.hidden = true; gsResults.textContent = ''; return; }
+  gsPanel.hidden = false;
+  gsNote('Searching...');
+  gsGuard(gsEngine.run(q), q, seq);
+}
+function gsMore(q) {
+  const seq = ++gsSeq;
+  gsGuard(gsEngine.more().then(st => st && (st.hits.length || st.query ? st : null)), q, seq);
+}
+gsInput.addEventListener('input', () => {
+  clearTimeout(gsTimer);
+  if (!gsInput.value.trim()) gsRun(); else gsTimer = setTimeout(gsRun, 300);
+});
+gsInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') gsRun();
+  else if (e.key === 'Escape') { gsInput.value = ''; gsRun(); }
+});
+gsInput.addEventListener('focus', () => { if (gsInput.value.trim() && gsHits.length) gsPanel.hidden = false; });
 
 // Favorites: Set of "system_id:tgid" keys
 function loadSet(key) {
@@ -4147,8 +4236,8 @@ function queryCalls(q) { return askRecorder(Object.assign({ type: 'callsQuery' }
 function queryRadio(q) { return askRecorder(Object.assign({ type: 'radioQuery' }, q)); }
 
 /** GET from the transcribe plugin. */
-async function fetchTranscribe(path) {
-  const res = await fetch(TRANSCRIBE_BASE + path);
+async function fetchTranscribe(path, signal) {
+  const res = await fetch(TRANSCRIBE_BASE + path, { signal });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} from ${TRANSCRIBE_BASE}${path}`);
   return res.json();
 }
