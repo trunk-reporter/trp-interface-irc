@@ -756,6 +756,23 @@ body::after {
 .nick-tooltip .tt-online { color: var(--irc-success); }
 .nick-tooltip .tt-offline { color: var(--text-faint); }
 .msg .nick { cursor: pointer; }
+.msg .nick.talkers { cursor: default; }
+.msg .tnick, .msg .tmore { cursor: pointer; }
+.msg .tnick:hover, .msg .tmore:hover { text-decoration: underline; }
+.msg .tmore { color: var(--text-muted); }
+.talkers-pop {
+  display: none; position: fixed; z-index: 120; min-width: 160px; max-width: 280px; max-height: 50vh; overflow-y: auto;
+  background: var(--bg); border: 1px solid var(--border-hover); border-radius: 6px; padding: 4px;
+  box-shadow: var(--shadow-panel); font-size: 14px; color: var(--text-mid);
+}
+.talkers-pop .tp-title { padding: 4px 8px; color: var(--text-muted); font-size: 12px; }
+.talkers-pop .tp-item { padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+.talkers-pop .tp-item:hover { background: var(--bg-elevated); }
+@media (max-width: 768px) {
+  .talkers-pop { left: 0 !important; right: 0; top: auto !important; bottom: 0; max-width: none; border-radius: 12px 12px 0 0; padding: 8px 8px 16px; }
+  .talkers-pop .tp-item { min-height: 44px; display: flex; align-items: center; font-size: 16px; }
+  .msg .tnick, .msg .tmore { padding: 4px 0; }
+}
 .nick-item { cursor: pointer; }
 
 /* ── Unit detail modal ── */
@@ -1382,6 +1399,7 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
 // The recorder's own client library, served by the recorder on this port.
 import { TrunkClient, LivePlayer, systemName } from "/api/client.js";
 import { unreadList, stepUnread, tabTitle } from "./unread.js";
+import { talkerParts, talkersText } from "./talkers.js";
 
 // ══════════════════════════════════════════════════════════════
 // TODO — Enhancement ideas
@@ -2130,6 +2148,12 @@ function showNickTooltip(nick, el) {
     html += `<br><span class="tt-label">Last TX:</span> ${ts(lastTx)}`;
   }
 
+  placeTooltip(html, el);
+}
+
+/** Show the tooltip with `html` beside `el`, kept inside the window. */
+function placeTooltip(html, el) {
+  clearTimeout(tooltipTimer);
   nickTooltip.innerHTML = html;
   nickTooltip.style.display = 'block';
 
@@ -2580,8 +2604,54 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && currentModalUnit) closeUnitModal();
 });
 
+/** A radio in a several-radio label: its card, by system and unit (names can repeat). */
+function openTalker(uk, nick) {
+  const state = channels.get(activeChannel);
+  let user = state && state.users.get(uk);
+  if (!user) for (const ch of channels.values()) { if (ch.users.has(uk)) { user = ch.users.get(uk); break; } }
+  if (user) { openUnitModal(user); return; }
+  const found = findUserByNick(nick);
+  if (found) openUnitModal(found.user);
+}
+
+/** The radios of a "+N" label, from the label's own data. */
+function talkersOf(moreEl) {
+  const sys = moreEl.dataset.sys;
+  return talkerParts((moreEl.dataset.units || '').split(',').filter(Boolean).map(Number),
+    u => resolveNick(isNaN(Number(sys)) ? sys : Number(sys), u, '')).all;
+}
+
+const talkersPop = document.createElement('div');
+talkersPop.className = 'talkers-pop';
+document.body.appendChild(talkersPop);
+function hideTalkersPop() { talkersPop.style.display = 'none'; }
+function showTalkersPop(moreEl) {
+  const sysRaw = moreEl.dataset.sys;
+  const sid = isNaN(Number(sysRaw)) ? sysRaw : Number(sysRaw);
+  const all = talkersOf(moreEl);
+  talkersPop.innerHTML = `<div class="tp-title">Radios in this call (${all.length})</div>` +
+    all.map(p => `<div class="tp-item" data-uk="${esc(unitKey(sid, p.unit))}" data-nick="${esc(p.name)}">${esc(p.name)}</div>`).join('');
+  talkersPop.style.display = 'block';
+  const r = moreEl.getBoundingClientRect();
+  const w = talkersPop.offsetWidth, h = talkersPop.offsetHeight;
+  talkersPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+  talkersPop.style.top = (r.bottom + h + 8 > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+}
+talkersPop.addEventListener('click', (e) => {
+  const it = e.target.closest('.tp-item');
+  if (!it) return;
+  hideTalkersPop();
+  openTalker(it.dataset.uk, it.dataset.nick);
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.talkers-pop, .tmore')) hideTalkersPop(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTalkersPop(); });
+
 // Click nick in chat messages → open unit modal (event delegation)
 messagesEl.addEventListener('click', (e) => {
+  const tn = e.target.closest('.msg .tnick');
+  if (tn) { hideNickTooltip(); openTalker(tn.dataset.uk, tn.dataset.nick); return; }
+  const more = e.target.closest('.msg .tmore');
+  if (more) { e.stopPropagation(); hideNickTooltip(); showTalkersPop(more); return; }
   const nickEl = e.target.closest('.msg .nick');
   if (!nickEl) return;
   const nick = nickEl.dataset.nick;
@@ -2867,9 +2937,19 @@ function buildMsgEl(m) {
     if (m.originChannel) {
       nickHtml += `<span class="origin-tag" data-channel="${esc(m.originChannel)}">${esc(m.originChannel)}</span>`;
     }
-    // Several radios' label (talkerUnits): no data-nick, so no tooltip or radio card for a radio that doesn't exist.
-    const nickData = m.talkerUnits ? '' : ` data-nick="${esc(m.nick || '')}"`;
-    nickHtml += `<span class="nick" style="color:${color}"${nickData}>${esc(m.nick || '???')}</span>`;
+    // Several radios' label (talkerUnits): the .nick itself has no data-nick (it is no radio's nick); its parts do.
+    if (m.talkerUnits) {
+      // Each radio named in the label is its own target (click: radio card, hover: tooltip); "+N" lists the rest.
+      const parts = talkerParts(m.talkerUnits, u => resolveNick(m.talkerSys, u, ''));
+      const names = parts.shown.map(p =>
+        `<span class="tnick" data-uk="${esc(unitKey(m.talkerSys, p.unit))}" data-nick="${esc(p.name)}">${esc(p.name)}</span>`).join(', ');
+      const more = parts.hidden.length
+        ? ` <span class="tmore" data-sys="${esc(m.talkerSys)}" data-units="${esc(parts.all.map(p => p.unit).join(','))}">+${parts.hidden.length}</span>`
+        : '';
+      nickHtml += `<span class="nick talkers" style="color:${color}">${names}${more}</span>`;
+    } else {
+      nickHtml += `<span class="nick" style="color:${color}" data-nick="${esc(m.nick || '')}">${esc(m.nick || '???')}</span>`;
+    }
 
     // Voice message with audio link (and optional transcription text)
     if (m.callId) {
@@ -4471,8 +4551,7 @@ function applyTranscript(t) {
  *  are no segments; a skipped or failed one's reason, muted. Returns whether the call was there. */
 /** "A, B +2": the radios heard in a call, for a transcript that can't say who said what. */
 function talkersLabel(sid, units) {
-  const names = units.slice(0, 2).map(u => resolveNick(sid, u, ''));
-  return names.join(', ') + (units.length > 2 ? ` +${units.length - 2}` : '');
+  return talkersText(talkerParts(units, u => resolveNick(sid, u, '')));
 }
 function applyTranscriptionToChannel(chanName, callId, t) {
   const ch = channels.get(chanName);
@@ -4914,11 +4993,20 @@ document.addEventListener('keydown', (e) => {
 
 // Nick tooltip on hover in chat messages (event delegation)
 messagesEl.addEventListener('mouseover', (e) => {
+  const tn = e.target.closest('.tnick');
+  if (tn) { showNickTooltip(tn.dataset.nick, tn); return; }
+  const more = e.target.closest('.tmore');
+  if (more) {
+    const all = talkersOf(more);
+    placeTooltip(`<span class="tt-nick">All ${all.length} radios in this call</span>` +
+      all.map(p => `<br>${esc(p.name)}`).join(''), more);
+    return;
+  }
   const nickEl = e.target.closest('.nick[data-nick]');
   if (nickEl && nickEl.dataset.nick) showNickTooltip(nickEl.dataset.nick, nickEl);
 });
 messagesEl.addEventListener('mouseout', (e) => {
-  const nickEl = e.target.closest('.nick[data-nick]');
+  const nickEl = e.target.closest('.nick[data-nick], .tnick, .tmore');
   if (nickEl) hideNickTooltip();
 });
 
