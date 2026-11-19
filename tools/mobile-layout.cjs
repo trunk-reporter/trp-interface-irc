@@ -82,6 +82,8 @@ async function phone(browser, width, height) {
   check(at, !row.extra, 'drawer rows still show the mute/ignore icons');
   check(at, row.r <= width, 'drawer is wider than the screen');
   check(at, (await box(p, '#tree-search'))?.font >= 16, 'search box text under 16px');
+  const gs = await box(p, '#global-search');
+  check(at, gs && gs.shown && gs.font >= 16 && gs.w >= 0.8 * Math.min(width * 0.86, 340), `global search box: ${JSON.stringify(gs)}`);
   await p.evaluate(() => document.getElementById('drawer-backdrop').click()); await sleep(400);
 
   // Channel actions sheet, then rename

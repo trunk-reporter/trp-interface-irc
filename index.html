@@ -1179,6 +1179,9 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
   .read-all-btn { min-height: 36px; padding: 0 10px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
   .tree-search-input { font-size: 16px; height: 40px; }
   .gs-input { font-size: 16px; height: 40px; }
+  .gs-panel { max-height: 50vh; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .gs-hit { min-height: 44px; box-sizing: border-box; align-items: center; padding: 6px 8px; font-size: 14px; }
+  .gs-more { min-height: 44px; }
   .tree-btn { min-width: 40px; min-height: 40px; font-size: 16px; }
   .tree-section-label { min-height: 40px; display: flex; align-items: center; font-size: 13px; }
   .channel-item { min-height: 42px; font-size: 15px; padding: 0 4px 0 16px; gap: 6px; }
@@ -5861,6 +5864,7 @@ function openMenuSheet() {
   const box = document.getElementById('menu-sheet-actions');
   box.textContent = '';
   box.append(proxyButton(document.getElementById('sync-btn')));
+  box.append(sheetButton('🔍 Search transcripts', () => { openDrawer('channels'); gsInput.focus(); }));
   box.append(proxyButton(document.getElementById('scanner-btn'), scannerEnabled ? 'Scanner mode: on' : 'Scanner mode: off'));
   const themes = document.getElementById('sheet-themes');
   themes.textContent = '';
