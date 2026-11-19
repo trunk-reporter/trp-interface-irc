@@ -144,3 +144,45 @@ test('createSearch: whitespace query makes no requests', async () => {
   assert.equal(n, 0);
   assert.deepEqual(s, { hits: [], hasMore: false, failed: 0, total: 0, query: '' });
 });
+
+test('createSearch: more() after cancel() sends no request', async () => {
+  let n = 0;
+  const s = createSearch(async () => { n++; return { hits: [hit('a', 1)], more: true, before: 1 }; });
+  await s.run('fire');
+  n = 0;
+  s.cancel();
+  await s.more();
+  assert.equal(n, 0);
+});
+
+test('createSearch: more() during in-flight run() sends no request and leaves new state alone', async () => {
+  let n = 0;
+  let release;
+  const gate = new Promise(r => { release = r; });
+  const getJson = async (path) => {
+    n++;
+    if (qOf(path) === 'police') { await gate; return { hits: [hit('p', 1)], more: false, before: 0 }; }
+    return { hits: [hit('a', 1)], more: true, before: 1 };
+  };
+  const s = createSearch(getJson);
+  await s.run('fire');
+  const second = s.run('police');
+  n = 0;
+  await s.more();
+  assert.equal(n, 0);
+  release();
+  const st = await second;
+  assert.equal(st.query, 'police');
+  assert.equal(st.failed, 0);
+});
+
+test('createSearch: more() after an all-fail run sends no request', async () => {
+  let fail = false, n = 0;
+  const s = createSearch(async () => { n++; if (fail) throw new Error('x'); return { hits: [hit('a', 1)], more: true, before: 1 }; });
+  await s.run('fire');
+  fail = true;
+  await assert.rejects(s.run('police'));
+  n = 0;
+  await s.more();
+  assert.equal(n, 0);
+});

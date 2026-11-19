@@ -62,8 +62,6 @@ export function safeSnippet(html) {
     .replace(/&lt;b&gt;/g, '<b>').replace(/&lt;\/b&gt;/g, '</b>');
 }
 
-const isAbort = e => e && e.name === 'AbortError';
-
 /**
  * Parallel search runner. getJson(path, signal) -> Promise<{hits, more, before}>.
  * run/more resolve null when superseded by a newer run() or cancel().
@@ -84,6 +82,7 @@ export function createSearch(getJson, opts = {}) {
     gen++;
     if (ctrl) ctrl.abort();
     ctrl = null;
+    cur = null;   // no committed state until a run completes
   }
 
   /** Query the given variants; returns null if superseded. Updates cur in place. */
@@ -118,21 +117,21 @@ export function createSearch(getJson, opts = {}) {
     const next = { query, variants, failed: 0 };
     const failures = await fetchAll(variants, myGen, ctrl.signal);
     if (failures === null) return null;
-    if (failures === variants.length) throw new Error('search failed');
+    if (failures === variants.length) { cur = null; ctrl = null; throw new Error('search failed'); }
     next.failed = failures;
     cur = next;
     return state();
   }
 
   async function more() {
-    if (!cur) return { hits: [], hasMore: false, failed: 0, total: 0, query: '' };
-    const targets = cur.variants.filter(v => v.more);
+    const mine = cur;
+    if (!mine || !ctrl) return { hits: [], hasMore: false, failed: 0, total: 0, query: '' };
+    const targets = mine.variants.filter(v => v.more);
     if (!targets.length) return state();
     const myGen = gen;
-    const signal = ctrl ? ctrl.signal : new AbortController().signal;
-    const failures = await fetchAll(targets, myGen, signal);
-    if (failures === null) return null;
-    cur.failed += failures;
+    const failures = await fetchAll(targets, myGen, ctrl.signal);
+    if (failures === null || mine !== cur) return null;
+    mine.failed += failures;
     return state();
   }
 
