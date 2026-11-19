@@ -61,3 +61,80 @@ export function safeSnippet(html) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
     .replace(/&lt;b&gt;/g, '<b>').replace(/&lt;\/b&gt;/g, '</b>');
 }
+
+const isAbort = e => e && e.name === 'AbortError';
+
+/**
+ * Parallel search runner. getJson(path, signal) -> Promise<{hits, more, before}>.
+ * run/more resolve null when superseded by a newer run() or cancel().
+ */
+export function createSearch(getJson, opts = {}) {
+  const limit = opts.limit || 30;
+  let ctrl = null;
+  let gen = 0;
+  let cur = null;   // { query, variants: [{q, hits, more, before}], failed }
+
+  const url = (q, before) => `/api/v1/search?q=${encodeURIComponent(q)}&limit=${limit}` + (before != null ? `&before=${before}` : '');
+  const state = () => {
+    const hits = mergeHits(cur.variants.map(v => v.hits));
+    return { hits, hasMore: cur.variants.some(v => v.more), failed: cur.failed, total: hits.length, query: cur.query };
+  };
+
+  function cancel() {
+    gen++;
+    if (ctrl) ctrl.abort();
+    ctrl = null;
+  }
+
+  /** Query the given variants; returns null if superseded. Updates cur in place. */
+  async function fetchAll(targets, myGen, signal) {
+    const settled = await Promise.allSettled(targets.map(v => getJson(url(v.q, v.paged ? v.before : null), signal)));
+    if (myGen !== gen) return null;
+    let failures = 0;
+    settled.forEach((r, i) => {
+      const v = targets[i];
+      if (r.status === 'fulfilled') {
+        const d = r.value || {};
+        v.hits = [...v.hits, ...(d.hits || [])];
+        v.more = !!d.more;
+        v.before = d.before;
+        v.paged = true;
+      } else {
+        failures++;
+        v.more = false;
+      }
+    });
+    return failures;
+  }
+
+  async function run(text) {
+    cancel();
+    const query = String(text || '').trim();
+    const myGen = gen;
+    const qs = expandQuery(query);
+    if (!qs.length) { cur = { query: '', variants: [], failed: 0 }; return state(); }
+    ctrl = new AbortController();
+    const variants = qs.map(q => ({ q, hits: [], more: false, before: null, paged: false }));
+    const next = { query, variants, failed: 0 };
+    const failures = await fetchAll(variants, myGen, ctrl.signal);
+    if (failures === null) return null;
+    if (failures === variants.length) throw new Error('search failed');
+    next.failed = failures;
+    cur = next;
+    return state();
+  }
+
+  async function more() {
+    if (!cur) return { hits: [], hasMore: false, failed: 0, total: 0, query: '' };
+    const targets = cur.variants.filter(v => v.more);
+    if (!targets.length) return state();
+    const myGen = gen;
+    const signal = ctrl ? ctrl.signal : new AbortController().signal;
+    const failures = await fetchAll(targets, myGen, signal);
+    if (failures === null) return null;
+    cur.failed += failures;
+    return state();
+  }
+
+  return { run, more, cancel };
+}
