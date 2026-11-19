@@ -1833,15 +1833,20 @@ function gsRender(st, q) {
     const chName = resolveChannel(h.system, h.talkgroup) || `${h.system}/${h.talkgroup}`;
     const row = document.createElement('div'); row.className = 'gs-hit'; row.dataset.i = i;
     const play = document.createElement('button'); play.className = 'tree-btn gs-play'; play.textContent = '▶'; play.title = 'Play';
-    play.addEventListener('click', e => { e.stopPropagation(); playCall(h.path, null, resolveChannel(h.system, h.talkgroup), null, null, null); });
+    play.addEventListener('click', e => { e.stopPropagation(); playCall(h.path, null, chName, null, null, null); });
     const body = document.createElement('div'); body.className = 'gs-body';
     const meta = document.createElement('div'); meta.className = 'gs-meta'; meta.textContent = `${chName} · ${ts(new Date(h.startMs))}`;
-    const snip = document.createElement('div'); snip.className = 'gs-snip'; snip.innerHTML = safeSnippet(h.snippet);
+    const snipHtml = safeSnippet(h.snippet);
+    const snip = document.createElement('div'); snip.className = 'gs-snip'; snip.innerHTML = snipHtml;
+    let full = false;
     body.append(meta, snip); row.append(play, body);
     row.addEventListener('click', () => {
       const ch = resolveChannel(h.system, h.talkgroup);
       if (ch && channels.has(ch)) switchChannel(ch);
-      else { snip.textContent = h.text || ''; }  // unknown channel: just show the transcript
+      else if (h.text) {  // unknown channel: toggle highlighted snippet / full transcript
+        full = !full;
+        if (full) snip.textContent = h.text; else snip.innerHTML = snipHtml;
+      }
     });
     gsResults.appendChild(row);
   });
@@ -1877,8 +1882,9 @@ gsInput.addEventListener('input', () => {
   if (!gsInput.value.trim()) gsRun(); else gsTimer = setTimeout(gsRun, 300);
 });
 gsInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter') gsRun();
-  else if (e.key === 'Escape') { gsInput.value = ''; gsRun(); }
+  if (e.key === '/') e.stopPropagation();  // keep the global '/' focus-chat shortcut out of queries
+  else if (e.key === 'Enter') { if (!e.isComposing) gsRun(); }
+  else if (e.key === 'Escape') { e.stopPropagation(); gsInput.value = ''; gsRun(); }
 });
 gsInput.addEventListener('focus', () => { if (gsInput.value.trim() && gsHits.length) gsPanel.hidden = false; });
 
