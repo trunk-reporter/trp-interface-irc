@@ -263,6 +263,7 @@ body::after {
 .gs-snip b { color: var(--irc-info); }
 .gs-play { flex-shrink: 0; }
 .gs-more { display: block; margin: 4px 8px; }
+.msg.gs-flash { background: color-mix(in srgb, var(--irc-info) 18%, transparent); }
 .tree-btn {
   background: none;
   border: 1px solid var(--border);
@@ -1834,30 +1835,58 @@ function gsRender(st, q) {
   if (st.failed) { const n = document.createElement('div'); n.className = 'gs-note'; n.textContent = `${st.failed} variant(s) failed`; gsResults.appendChild(n); }
   st.hits.forEach((h, i) => {
     const chName = resolveChannel(h.system, h.talkgroup) || `${h.system}/${h.talkgroup}`;
+    // Speakers: the segments' radios, named the way the transcript lines name them.
+    const units = (h.segments || []).map(sg => sg && sg.unit).filter(u => u != null && u !== '');
+    const tp = talkerParts(units, u => resolveNick(h.system, u, ''));
+    const speaker = tp.all.length ? talkersText(tp) : '';
+    const nick = tp.all.length ? tp.all[0].name : null;
     const row = document.createElement('div'); row.className = 'gs-hit'; row.dataset.i = i;
     const play = document.createElement('button'); play.className = 'tree-btn gs-play'; play.textContent = '▶'; play.title = 'Play';
-    play.addEventListener('click', e => { e.stopPropagation(); playCall(h.path, null, chName, null, null, null); });
+    play.addEventListener('click', e => { e.stopPropagation(); playCall(h.path, nick, chName, null, null, null); });
     const body = document.createElement('div'); body.className = 'gs-body';
-    const meta = document.createElement('div'); meta.className = 'gs-meta'; meta.textContent = `${chName} · ${ts(new Date(h.startMs))}`;
-    const snipHtml = safeSnippet(h.snippet);
+    const meta = document.createElement('div'); meta.className = 'gs-meta';
+    meta.textContent = `${chName} · ${ts(new Date(h.startMs))}` + (speaker ? ` · ${speaker}` : '');
+    const snipHtml = h.snippet ? safeSnippet(h.snippet) : esc(h.text || '');
     const snip = document.createElement('div'); snip.className = 'gs-snip'; snip.innerHTML = snipHtml;
     let full = false;
+    const toggleFull = () => {  // show the full transcript in the row (or back to the snippet)
+      if (!h.text) return;
+      full = !full;
+      if (full) snip.textContent = h.text; else snip.innerHTML = snipHtml;
+    };
     body.append(meta, snip); row.append(play, body);
     row.addEventListener('click', () => {
       const ch = resolveChannel(h.system, h.talkgroup);
-      if (ch && channels.has(ch)) switchChannel(ch);
-      else if (h.text) {  // unknown channel: toggle highlighted snippet / full transcript
-        full = !full;
-        if (full) snip.textContent = h.text; else snip.innerHTML = snipHtml;
-      }
+      if (!ch || !channels.has(ch)) { toggleFull(); return; }  // unknown channel: never create one
+      switchChannel(ch);
+      if (gsShowMsg(ch, h.path)) return;
+      if (!channelLoading.has(ch)) { toggleFull(); return; }
+      // History still loading: try once more when it finishes (bounded wait), else show the text here.
+      let waited = 0;
+      const poll = setInterval(() => {
+        waited += 200;
+        if (channelLoading.has(ch) && waited < 5000) return;
+        clearInterval(poll);
+        if (activeChannel === ch && !gsShowMsg(ch, h.path)) toggleFull();
+      }, 200);
     });
     gsResults.appendChild(row);
   });
   if (st.hasMore) {
     const b = document.createElement('button'); b.className = 'tree-btn gs-more'; b.textContent = 'Load more';
-    b.addEventListener('click', () => gsMore(q));
+    b.addEventListener('click', () => { if (b.disabled) return; b.disabled = true; b.textContent = 'Loading...'; gsMore(q); });
     gsResults.appendChild(b);
   }
+}
+/** Scroll the active channel to a call's message and flash it; false when it isn't on the page. */
+function gsShowMsg(ch, path) {
+  if (activeChannel !== ch) return false;
+  const el = messagesEl.querySelector(`[data-call-id="${CSS.escape(String(path))}"]`);
+  if (!el) return false;
+  el.scrollIntoView({ block: 'center' });
+  el.classList.add('gs-flash');
+  setTimeout(() => el.classList.remove('gs-flash'), 2000);
+  return true;
 }
 async function gsGuard(p, q, seq) {
   try {
