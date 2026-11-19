@@ -40,7 +40,7 @@ export function expandQuery(text) {
     // Expand on the core word; the as-written form keeps its edge punctuation, expansions drop it.
     const alts = core ? alternatives(core, i === 0).map((a, k) => (k === 0 ? tok : a)) : [tok];
     const next = [];
-    for (const b of beam) alts.forEach((a, k) => next.push({ parts: [...b.parts, a], cost: b.cost + k + (a === '' ? 2 : 0) + (/^\d(-\d)+$/.test(a) ? 1 : 0) }));
+    for (const b of beam) alts.forEach((a, k) => next.push({ parts: [...b.parts, a], cost: b.cost + k + (a === '' ? 2 : 0) + (/^\d(-\d)+$/.test(a) ? 3 : 0) }));
     next.sort((x, y) => x.cost - y.cost);
     beam = next.slice(0, 64);
   });
