@@ -33,3 +33,16 @@ test('safeSnippet: keeps <b>, escapes everything else', () => {
   assert.equal(safeSnippet('x <b>y</b> <script>1</script> & "q"'),
     'x <b>y</b> &lt;script&gt;1&lt;/script&gt; &amp; &quot;q&quot;');
 });
+test('expandQuery: edge punctuation does not defeat expansion', () => {
+  const v = expandQuery('321 W. 4th St.');
+  assert.equal(v[0], '321 w. 4th st.');
+  assert.ok(v.includes('321 west fourth street'));
+  assert.deepEqual(expandQuery('. , --'), []);
+});
+test('expandQuery: huge input stays fast and bounded', () => {
+  const q = Array.from({ length: 5000 }, (_, i) => 'w' + (i % 7)).join(' ');
+  const t = performance.now();
+  const v = expandQuery(q);
+  assert.ok(v.length <= 8);
+  assert.ok(performance.now() - t < 200);
+});

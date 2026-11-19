@@ -1,6 +1,7 @@
 // Pure helpers for global transcript search: query expansion, hit merging, snippet sanitizing.
 
 const MAX_VARIANTS = 8;
+const MAX_EXPAND_TOKENS = 12;
 const DIRS = { n: 'north', s: 'south', e: 'east', w: 'west' };
 const ORD = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth'];
 const ORD_NUM = ORD.map((_, i) => { const n = i + 1; const s = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; return n + s; });
@@ -28,17 +29,22 @@ function alternatives(tok, first) {
 export function expandQuery(text) {
   const norm = String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (!/[\p{L}\p{N}]/u.test(norm)) return [];
-  const toks = norm.split(' ');
+  const all = norm.split(' ');
+  const toks = all.slice(0, MAX_EXPAND_TOKENS);   // bound work on huge input
+  const rest = all.slice(MAX_EXPAND_TOKENS);      // appended unexpanded
   // Beam of partial variants ranked by how far they stray from the original; stable sort keeps original first.
   let beam = [{ parts: [], cost: 0 }];
   toks.forEach((tok, i) => {
-    const alts = alternatives(tok, i === 0);
+    const m = /^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/su.exec(tok);
+    const [, pre, core, post] = m;
+    // Expand on the core word; the as-written form keeps its edge punctuation, expansions drop it.
+    const alts = core ? alternatives(core, i === 0).map((a, k) => (k === 0 ? tok : a)) : [tok];
     const next = [];
-    for (const b of beam) alts.forEach((a, k) => next.push({ parts: [...b.parts, a], cost: b.cost + k }));
+    for (const b of beam) alts.forEach((a, k) => next.push({ parts: [...b.parts, a], cost: b.cost + k + (a === '' ? 2 : 0) + (/^\d(-\d)+$/.test(a) ? 1 : 0) }));
     next.sort((x, y) => x.cost - y.cost);
     beam = next.slice(0, 64);
   });
-  const out = uniq([norm, ...beam.map(b => b.parts.filter(Boolean).join(' '))].filter(Boolean));
+  const out = uniq([norm, ...beam.map(b => [...b.parts.filter(Boolean), ...rest].join(' '))].filter(Boolean));
   return out.slice(0, MAX_VARIANTS);
 }
 
