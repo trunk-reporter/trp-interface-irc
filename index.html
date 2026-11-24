@@ -325,6 +325,7 @@ body::after {
 .channel-item:hover { background: var(--bg-elevated); color: var(--text); }
 .channel-item.active { color: var(--text); background: var(--bg-elevated); font-weight: 500; }
 .channel-item.has-activity { color: var(--irc-warning); }
+.channel-item.has-activity .chan-label, .channel-item.has-activity .chan-prefix { font-weight: 800; }
 .channel-item .chan-prefix { color: var(--text-muted); }
 .channel-item .chan-label { overflow: hidden; text-overflow: ellipsis; }
 .channel-item .unread {
@@ -375,7 +376,7 @@ body::after {
   display: inline-block;
   line-height: 14px;
 }
-.channel-item.emergency-chan .chan-prefix, .channel-item.emergency-chan .chan-label { color: var(--danger); font-weight: 600; }
+.channel-item.emergency-chan .chan-prefix, .channel-item.emergency-chan .chan-label { color: var(--danger); font-weight: 700; }
 .channel-item.emergency-chan.has-activity { background: color-mix(in srgb, var(--danger) 14%, transparent); }
 .ign-icon {
   cursor: pointer;
@@ -398,17 +399,19 @@ body::after {
 .channel-item[data-chcolor]:not(.emergency-chan) .chan-prefix { color: var(--chan-color); }
 .color-icon { cursor: pointer; opacity: 0; transition: opacity 0.15s; font-size: 10px; flex-shrink: 0; padding: 0 1px; }
 .channel-item:hover .color-icon, .color-icon.active { opacity: 1; }
+.tg-color-ctl button.reset:disabled { opacity: .4; cursor: default; }
 .chan-color-pop {
   position: fixed; z-index: 1000; background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: 6px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.4); width: 132px;
 }
-.chan-color-pop .sw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
-.chan-color-pop .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.tg-color-ctl { padding: 4px 16px 8px; max-width: 200px; }
+.tg-color-ctl .sw-grid, .chan-color-pop .sw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.tg-color-ctl .sw, .chan-color-pop .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .chan-color-pop .sw:hover, .chan-color-pop .sw.on { border-color: var(--text); }
-.chan-color-pop .row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
-.chan-color-pop input[type=color] { width: 36px; height: 24px; padding: 0; border: 1px solid var(--border); background: none; cursor: pointer; }
-.chan-color-pop button.reset { background: none; border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 2px 6px; }
-.chan-color-pop button.reset:hover { color: var(--text); border-color: var(--text-muted); }
+.tg-color-ctl .row, .chan-color-pop .row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+.tg-color-ctl input[type=color], .chan-color-pop input[type=color] { width: 36px; height: 24px; padding: 0; border: 1px solid var(--border); background: none; cursor: pointer; }
+.tg-color-ctl button.reset, .chan-color-pop button.reset { background: none; border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 2px 6px; }
+.tg-color-ctl button.reset:hover:not(:disabled), .chan-color-pop button.reset:hover { color: var(--text); border-color: var(--text-muted); }
 .scan-icon {
   cursor: pointer;
   opacity: 0;
@@ -1977,17 +1980,60 @@ function chanColorKey(chanName) {
   const ch = channels.get(chanName);
   return ch ? `${ch.system_id}:${ch.tgid}` : null;
 }
-function getChanColor(chanName) {
+function explicitChanColor(chanName) {
   const k = chanColorKey(chanName);
   const c = k && chanColors[k];
   return (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : null;
 }
+/** Fire talkgroups red, law (PD) blue, from the talkgroup file's Tag (fallback: FD / PD in the name). */
+function autoChanColor(chanName) {
+  const ch = channels.get(chanName);
+  if (!ch || !ch.tgid) return null;
+  const tag = String(ch.tag || '');
+  const name = String(ch.alpha_tag || '');
+  if (/^fire/i.test(tag) || /(^|[\s-])FD(\b|$)/i.test(name)) return '#ef4444';
+  if (/^law/i.test(tag) || /(^|[\s-])PD(\b|$)/i.test(name)) return '#3b82f6';
+  return null;
+}
+function getChanColor(chanName) { return explicitChanColor(chanName) || autoChanColor(chanName); }
 function setChanColor(chanName, color) {
   const k = chanColorKey(chanName);
   if (!k) return;
   if (color) chanColors[k] = color; else delete chanColors[k];
   try { localStorage.setItem('irc_chan_colors', JSON.stringify(chanColors)); } catch { /* storage blocked */ }
   renderTree();
+}
+/** Swatches + custom picker + reset for one channel; onDone runs after a change. */
+function buildChanColorControls(chanName, onDone) {
+  const wrap = document.createElement('div');
+  const cur = explicitChanColor(chanName);
+  const eff = getChanColor(chanName);
+  const grid = document.createElement('div');
+  grid.className = 'sw-grid';
+  for (const c of CHAN_COLOR_PRESETS) {
+    const b = document.createElement('button');
+    b.className = 'sw' + (c === eff ? ' on' : '');
+    b.style.background = c;
+    b.title = c;
+    b.addEventListener('click', () => { setChanColor(chanName, c); onDone(); });
+    grid.appendChild(b);
+  }
+  wrap.appendChild(grid);
+  const row = document.createElement('div');
+  row.className = 'row';
+  const pick = document.createElement('input');
+  pick.type = 'color';
+  pick.value = eff || '#3b82f6';
+  pick.title = 'Custom color';
+  pick.addEventListener('change', () => { setChanColor(chanName, pick.value); onDone(); });
+  const reset = document.createElement('button');
+  reset.className = 'reset';
+  reset.textContent = cur ? (autoChanColor(chanName) ? 'Back to auto' : 'Reset') : 'Auto';
+  reset.disabled = !cur;
+  reset.addEventListener('click', () => { setChanColor(chanName, null); onDone(); });
+  row.append(pick, reset);
+  wrap.appendChild(row);
+  return wrap;
 }
 function closeChanColorPop() {
   const p = document.getElementById('chan-color-pop');
@@ -2000,34 +2046,10 @@ function onChanColorOutside(e) {
 }
 function openChanColorPop(chanName, anchor) {
   closeChanColorPop();
-  const cur = getChanColor(chanName);
   const pop = document.createElement('div');
   pop.id = 'chan-color-pop';
   pop.className = 'chan-color-pop';
-  const grid = document.createElement('div');
-  grid.className = 'sw-grid';
-  for (const c of CHAN_COLOR_PRESETS) {
-    const b = document.createElement('button');
-    b.className = 'sw' + (c === cur ? ' on' : '');
-    b.style.background = c;
-    b.title = c;
-    b.addEventListener('click', () => { setChanColor(chanName, c); closeChanColorPop(); });
-    grid.appendChild(b);
-  }
-  pop.appendChild(grid);
-  const row = document.createElement('div');
-  row.className = 'row';
-  const pick = document.createElement('input');
-  pick.type = 'color';
-  pick.value = cur || '#3b82f6';
-  pick.title = 'Custom color';
-  pick.addEventListener('change', () => { setChanColor(chanName, pick.value); closeChanColorPop(); });
-  const reset = document.createElement('button');
-  reset.className = 'reset';
-  reset.textContent = 'Reset';
-  reset.addEventListener('click', () => { setChanColor(chanName, null); closeChanColorPop(); });
-  row.append(pick, reset);
-  pop.appendChild(row);
+  pop.appendChild(buildChanColorControls(chanName, closeChanColorPop));
   document.body.appendChild(pop);
   const r = anchor.getBoundingClientRect();
   const w = pop.offsetWidth, h = pop.offsetHeight;
@@ -2035,6 +2057,87 @@ function openChanColorPop(chanName, anchor) {
   pop.style.top = Math.max(4, Math.min(r.bottom + 4, window.innerHeight - h - 4)) + 'px';
   setTimeout(() => document.addEventListener('mousedown', onChanColorOutside, true), 0);
 }
+
+// ── Talkgroup detail modal (click the channel name in the top bar) ──
+let tgModalChan = null;
+function closeTgModal() {
+  tgModalChan = null;
+  const m = document.getElementById('tg-modal');
+  if (m) m.classList.remove('visible');
+}
+function openTgModal(chanName) {
+  const st = channels.get(chanName);
+  if (!st || !st.tgid || isMetaChannel(chanName)) return;
+  tgModalChan = chanName;
+  let m = document.getElementById('tg-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'tg-modal';
+    m.className = 'unit-modal';
+    m.addEventListener('click', (e) => { if (e.target === m) closeTgModal(); });
+    document.body.appendChild(m);
+  }
+  const eff = getChanColor(chanName);
+  const rt = tgMeta(st.system_id, st.tgid);
+  const lastTs = channelLastMsgTs.get(chanName);
+  const rows = [
+    ['Talkgroup ID', String(st.tgid)],
+    ['Alpha tag', st.alpha_tag],
+    ['Description', st.description],
+    ['Tag', st.tag],
+    ['Group', st.group],
+    ['Mode', rt.mode || ''],
+    ['System', systemNames.get(st.system_id) || String(st.system_id)],
+    ['Radios heard here', String(st.users ? st.users.size : 0)],
+    ['Messages loaded', String(st.messages ? st.messages.length : 0)],
+    ['Unread', String(channelUnread.get(chanName) || 0)],
+    ['Last new message', lastTs ? relativeTime(lastTs) : ''],
+    ['Favorite', isFavorite(chanName) ? 'yes' : 'no'],
+    ['Scanner', isScanned(chanName) ? 'in scanner' : 'no'],
+    ['Ignored', [isIgnoredLocal(chanName) && 'here', isIgnoredRecorder(chanName) && 'on recorder'].filter(Boolean).join(' + ') || 'no'],
+    ['Name color', explicitChanColor(chanName) ? 'custom ' + explicitChanColor(chanName) : (autoChanColor(chanName) ? 'auto ' + autoChanColor(chanName) : 'default')],
+  ];
+  m.textContent = '';
+  const box = document.createElement('div');
+  box.className = 'unit-modal-box';
+  const close = document.createElement('button');
+  close.className = 'unit-modal-close';
+  close.innerHTML = '&times;';
+  close.addEventListener('click', closeTgModal);
+  box.appendChild(close);
+  const head = document.createElement('div');
+  head.className = 'unit-modal-header';
+  const idEl = document.createElement('span'); idEl.className = 'unit-modal-uid'; idEl.textContent = st.tgid;
+  const nameEl = document.createElement('span'); nameEl.className = 'unit-modal-nick'; nameEl.textContent = chanName;
+  if (eff) nameEl.style.color = eff;
+  const sysEl = document.createElement('span'); sysEl.className = 'unit-modal-system'; sysEl.textContent = systemNames.get(st.system_id) || '';
+  head.append(idEl, nameEl, sysEl);
+  box.appendChild(head);
+  const sec = document.createElement('div');
+  sec.className = 'unit-modal-section';
+  const lab = document.createElement('div');
+  lab.className = 'unit-modal-section-label';
+  lab.textContent = 'Name color (this browser)';
+  sec.appendChild(lab);
+  const ctl = buildChanColorControls(chanName, () => openTgModal(chanName));
+  ctl.className = 'tg-color-ctl';
+  sec.appendChild(ctl);
+  box.appendChild(sec);
+  const meta = document.createElement('div');
+  meta.className = 'unit-modal-meta';
+  for (const [k, v] of rows) {
+    const l = document.createElement('span'); l.className = 'unit-modal-meta-label'; l.textContent = k;
+    const val = document.createElement('span'); val.className = 'unit-modal-meta-value'; val.textContent = v || '\u2014';
+    meta.append(l, val);
+  }
+  box.appendChild(meta);
+  m.appendChild(box);
+  m.classList.add('visible');
+}
+chanNameEl.style.cursor = 'pointer';
+chanNameEl.title = 'Talkgroup details';
+chanNameEl.addEventListener('click', () => { if (activeChannel) openTgModal(activeChannel); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && tgModalChan) closeTgModal(); });
 
 // ── Starred meta-channel management ──
 
@@ -3392,7 +3495,7 @@ function createChannelItem(ch) {
     // Name color picker
     const colorIcon = document.createElement('span');
     const myColor = getChanColor(ch);
-    colorIcon.className = 'color-icon' + (myColor ? ' active' : '');
+    colorIcon.className = 'color-icon' + (explicitChanColor(ch) ? ' active' : '');
     colorIcon.textContent = '🎨';
     colorIcon.title = 'Change this channel’s name color';
     colorIcon.addEventListener('click', (e) => { e.stopPropagation(); openChanColorPop(ch, colorIcon); });
