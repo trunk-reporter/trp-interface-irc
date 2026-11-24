@@ -393,6 +393,22 @@ body::after {
 .ignored-row .ign-kind { font-size: 10px; }
 .ignored-row button { background: none; border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); font-size: 10px; cursor: pointer; padding: 0 4px; }
 .ignored-row button:hover { color: var(--irc-info); border-color: var(--irc-info); }
+/* Per-channel name colors (browser-local, key system_id:tgid) */
+.channel-item[data-chcolor]:not(.emergency-chan) .chan-label,
+.channel-item[data-chcolor]:not(.emergency-chan) .chan-prefix { color: var(--chan-color); }
+.color-icon { cursor: pointer; opacity: 0; transition: opacity 0.15s; font-size: 10px; flex-shrink: 0; padding: 0 1px; }
+.channel-item:hover .color-icon, .color-icon.active { opacity: 1; }
+.chan-color-pop {
+  position: fixed; z-index: 1000; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.4); width: 132px;
+}
+.chan-color-pop .sw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.chan-color-pop .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.chan-color-pop .sw:hover, .chan-color-pop .sw.on { border-color: var(--text); }
+.chan-color-pop .row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+.chan-color-pop input[type=color] { width: 36px; height: 24px; padding: 0; border: 1px solid var(--border); background: none; cursor: pointer; }
+.chan-color-pop button.reset { background: none; border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 2px 6px; }
+.chan-color-pop button.reset:hover { color: var(--text); border-color: var(--text-muted); }
 .scan-icon {
   cursor: pointer;
   opacity: 0;
@@ -1187,7 +1203,7 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
   .tree-section-label { min-height: 40px; display: flex; align-items: center; font-size: 13px; }
   .channel-item { min-height: 42px; font-size: 15px; padding: 0 4px 0 16px; gap: 6px; }
   .channel-item .unread { font-size: 12px; padding: 1px 6px; }
-  .channel-item .scan-icon, .channel-item .ign-icon { display: none; }
+  .channel-item .scan-icon, .channel-item .ign-icon, .channel-item .color-icon { display: none; }
   .channel-item .fav-star {
     opacity: 1; font-size: 18px; min-width: 40px; min-height: 40px;
     display: inline-flex; align-items: center; justify-content: center;
@@ -1949,6 +1965,75 @@ function toggleFavorite(chanName) {
   renderTree();
   updateIgnoreBar();
   liveWantedChanged();
+}
+
+// ── Per-channel name colors (localStorage only, like renames/ignore-here) ──
+const CHAN_COLOR_PRESETS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#a855f7', '#ec4899'];
+let chanColors = (() => {
+  try { const o = JSON.parse(localStorage.getItem('irc_chan_colors') || '{}'); return (o && typeof o === 'object') ? o : {}; }
+  catch { return {}; }
+})();
+function chanColorKey(chanName) {
+  const ch = channels.get(chanName);
+  return ch ? `${ch.system_id}:${ch.tgid}` : null;
+}
+function getChanColor(chanName) {
+  const k = chanColorKey(chanName);
+  const c = k && chanColors[k];
+  return (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : null;
+}
+function setChanColor(chanName, color) {
+  const k = chanColorKey(chanName);
+  if (!k) return;
+  if (color) chanColors[k] = color; else delete chanColors[k];
+  try { localStorage.setItem('irc_chan_colors', JSON.stringify(chanColors)); } catch { /* storage blocked */ }
+  renderTree();
+}
+function closeChanColorPop() {
+  const p = document.getElementById('chan-color-pop');
+  if (p) p.remove();
+  document.removeEventListener('mousedown', onChanColorOutside, true);
+}
+function onChanColorOutside(e) {
+  const p = document.getElementById('chan-color-pop');
+  if (p && !p.contains(e.target)) closeChanColorPop();
+}
+function openChanColorPop(chanName, anchor) {
+  closeChanColorPop();
+  const cur = getChanColor(chanName);
+  const pop = document.createElement('div');
+  pop.id = 'chan-color-pop';
+  pop.className = 'chan-color-pop';
+  const grid = document.createElement('div');
+  grid.className = 'sw-grid';
+  for (const c of CHAN_COLOR_PRESETS) {
+    const b = document.createElement('button');
+    b.className = 'sw' + (c === cur ? ' on' : '');
+    b.style.background = c;
+    b.title = c;
+    b.addEventListener('click', () => { setChanColor(chanName, c); closeChanColorPop(); });
+    grid.appendChild(b);
+  }
+  pop.appendChild(grid);
+  const row = document.createElement('div');
+  row.className = 'row';
+  const pick = document.createElement('input');
+  pick.type = 'color';
+  pick.value = cur || '#3b82f6';
+  pick.title = 'Custom color';
+  pick.addEventListener('change', () => { setChanColor(chanName, pick.value); closeChanColorPop(); });
+  const reset = document.createElement('button');
+  reset.className = 'reset';
+  reset.textContent = 'Reset';
+  reset.addEventListener('click', () => { setChanColor(chanName, null); closeChanColorPop(); });
+  row.append(pick, reset);
+  pop.appendChild(row);
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(4, Math.min(r.left, window.innerWidth - w - 4)) + 'px';
+  pop.style.top = Math.max(4, Math.min(r.bottom + 4, window.innerHeight - h - 4)) + 'px';
+  setTimeout(() => document.addEventListener('mousedown', onChanColorOutside, true), 0);
 }
 
 // ── Starred meta-channel management ──
@@ -3303,6 +3388,16 @@ function createChannelItem(ch) {
   if (!isStarred) {
     const rightCluster = document.createElement('span');
     rightCluster.className = 'channel-icons';
+
+    // Name color picker
+    const colorIcon = document.createElement('span');
+    const myColor = getChanColor(ch);
+    colorIcon.className = 'color-icon' + (myColor ? ' active' : '');
+    colorIcon.textContent = '🎨';
+    colorIcon.title = 'Change this channel’s name color';
+    colorIcon.addEventListener('click', (e) => { e.stopPropagation(); openChanColorPop(ch, colorIcon); });
+    rightCluster.appendChild(colorIcon);
+    if (myColor) { el.dataset.chcolor = '1'; el.style.setProperty('--chan-color', myColor); }
 
     // Scan icon
     const scanIcon = document.createElement('span');
