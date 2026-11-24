@@ -246,6 +246,36 @@ body::after {
   user-select: none;
 }
 .tree-search-clear.visible { visibility: visible; }
+/* Global transcript search panel */
+.gs-box { border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.gs-input { display: block; width: calc(100% - 16px); margin: 3px 8px; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 3px; color: var(--text);
+  font-family: inherit; font-size: 12px; padding: 2px 6px; outline: none; }
+.gs-input:focus { border-color: var(--irc-info); }
+.gs-input::placeholder { color: var(--text-faint); }
+.gs-panel { max-height: 40vh; overflow-y: auto; font-size: 12px; border-top: 1px solid var(--border); }
+.gs-panel[hidden] { display: none; }
+.gs-note { padding: 4px 8px; color: var(--text-muted); }
+.gs-hit { display: flex; gap: 4px; align-items: flex-start; padding: 3px 8px; cursor: pointer; border-bottom: 1px solid var(--border); }
+.gs-hit:hover { background: var(--bg); }
+.gs-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gs-meta { color: var(--text-muted); font-size: 11px; }
+.gs-snip b { color: var(--irc-info); }
+.gs-play { flex-shrink: 0; }
+.gs-more { display: block; margin: 4px 8px; }
+.msg.gs-flash { background: color-mix(in srgb, var(--irc-info) 18%, transparent); }
+.tree-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+}
+.tree-btn:hover { color: var(--irc-info); border-color: var(--irc-info); }
+.group-count { color: var(--text-faint); font-size: 10px; margin-left: 4px; }
 .tree-more {
   padding: 1px 8px 1px 16px;
   font-size: 12px;
@@ -260,9 +290,11 @@ body::after {
   overflow-y: auto;
   overflow-x: hidden;
 }
-.tree-scroll::-webkit-scrollbar { width: 6px; }
-.tree-scroll::-webkit-scrollbar-track { background: transparent; }
-.tree-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.tree-scroll, .nicklist-entries { scrollbar-width: thin; scrollbar-color: var(--text-faint) var(--bg); }
+.tree-scroll::-webkit-scrollbar { width: 8px; }
+.tree-scroll::-webkit-scrollbar-track { background: var(--bg); }
+.tree-scroll::-webkit-scrollbar-thumb { background: var(--text-faint); border-radius: 4px; }
+.tree-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 .tree-section { padding: 2px 0; }
 .tree-section-label {
@@ -273,6 +305,8 @@ body::after {
   cursor: pointer;
 }
 .tree-section-label .nb { white-space: nowrap; }
+.unread-label { display: flex; align-items: center; color: var(--irc-warning); cursor: pointer; }
+.unread-label > span { flex: 1; }
 .tree-section-label:hover { color: var(--text-mid); }
 .tree-section-label::before { content: '▾ '; font-size: 10px; }
 .tree-section-label.collapsed::before { content: '▸ '; }
@@ -291,6 +325,7 @@ body::after {
 .channel-item:hover { background: var(--bg-elevated); color: var(--text); }
 .channel-item.active { color: var(--text); background: var(--bg-elevated); font-weight: 500; }
 .channel-item.has-activity { color: var(--irc-warning); }
+.channel-item.has-activity .chan-label, .channel-item.has-activity .chan-prefix { font-weight: 800; }
 .channel-item .chan-prefix { color: var(--text-muted); }
 .channel-item .chan-label { overflow: hidden; text-overflow: ellipsis; }
 .channel-item .unread {
@@ -341,6 +376,42 @@ body::after {
   display: inline-block;
   line-height: 14px;
 }
+.channel-item.emergency-chan .chan-prefix, .channel-item.emergency-chan .chan-label { color: var(--danger); font-weight: 700; }
+.channel-item.emergency-chan.has-activity { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.ign-icon {
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  color: var(--text-muted);
+  font-size: 10px;
+  flex-shrink: 0;
+  padding: 0 1px;
+}
+.channel-item:hover .ign-icon { opacity: 1; }
+.ign-icon:hover { color: var(--irc-warning); }
+.ignored-row { display: flex; align-items: center; gap: 6px; padding: 1px 8px 1px 16px; font-size: 12px; color: var(--text-faint); }
+.ignored-row .ign-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ignored-row .ign-kind { font-size: 10px; }
+.ignored-row button { background: none; border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); font-size: 10px; cursor: pointer; padding: 0 4px; }
+.ignored-row button:hover { color: var(--irc-info); border-color: var(--irc-info); }
+/* Per-channel name colors (browser-local, key system_id:tgid) */
+.channel-item[data-chcolor]:not(.emergency-chan) .chan-label,
+.channel-item[data-chcolor]:not(.emergency-chan) .chan-prefix { color: var(--chan-color); }
+.color-icon { cursor: pointer; opacity: 0; transition: opacity 0.15s; font-size: 10px; flex-shrink: 0; padding: 0 1px; }
+.channel-item:hover .color-icon, .color-icon.active { opacity: 1; }
+.tg-color-ctl button.reset:disabled { opacity: .4; cursor: default; }
+.chan-color-pop {
+  position: fixed; z-index: 1000; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.4); width: 220px;
+}
+.tg-color-ctl { padding: 4px 20px 8px; max-width: 260px; }
+.tg-color-ctl .sw-grid, .chan-color-pop .sw-grid { display: grid; grid-template-columns: repeat(7, 24px); gap: 6px; margin-bottom: 8px; }
+.tg-color-ctl .sw, .chan-color-pop .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.chan-color-pop .sw:hover, .chan-color-pop .sw.on { border-color: var(--text); }
+.tg-color-ctl .row, .chan-color-pop .row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+.tg-color-ctl input[type=color], .chan-color-pop input[type=color] { width: 36px; height: 24px; padding: 0; border: 1px solid var(--border); background: none; cursor: pointer; }
+.tg-color-ctl button.reset, .chan-color-pop button.reset { background: none; border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 2px 6px; }
+.tg-color-ctl button.reset:hover:not(:disabled), .chan-color-pop button.reset:hover { color: var(--text); border-color: var(--text-muted); }
 .scan-icon {
   cursor: pointer;
   opacity: 0;
@@ -415,6 +486,12 @@ body::after {
   border-radius: 3px; line-height: 1; display: none;
 }
 .chan-edit-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.chan-ign-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  cursor: pointer; font-size: 12px; padding: 1px 8px; border-radius: 3px; white-space: nowrap;
+}
+.chan-ign-btn:hover { color: var(--irc-info); border-color: var(--irc-info); }
+.chan-ign-btn.on { color: var(--irc-warning); border-color: var(--irc-warning); }
 .chan-edit-row {
   display: flex; align-items: center; gap: 6px;
 }
@@ -681,9 +758,10 @@ body::after {
   overflow-y: auto;
   flex: 1;
 }
-.nicklist-entries::-webkit-scrollbar { width: 6px; }
-.nicklist-entries::-webkit-scrollbar-track { background: transparent; }
-.nicklist-entries::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.nicklist-entries::-webkit-scrollbar { width: 8px; }
+.nicklist-entries::-webkit-scrollbar-track { background: var(--bg); }
+.nicklist-entries::-webkit-scrollbar-thumb { background: var(--text-faint); border-radius: 4px; }
+.nicklist-entries::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 .nick-item {
   padding: 1px 10px;
@@ -715,6 +793,23 @@ body::after {
 .nick-tooltip .tt-online { color: var(--irc-success); }
 .nick-tooltip .tt-offline { color: var(--text-faint); }
 .msg .nick { cursor: pointer; }
+.msg .nick.talkers { cursor: default; }
+.msg .tnick, .msg .tmore { cursor: pointer; }
+.msg .tnick:hover, .msg .tmore:hover { text-decoration: underline; }
+.msg .tmore { color: var(--text-muted); }
+.talkers-pop {
+  display: none; position: fixed; z-index: 120; min-width: 160px; max-width: 280px; max-height: 50vh; overflow-y: auto;
+  background: var(--bg); border: 1px solid var(--border-hover); border-radius: 6px; padding: 4px;
+  box-shadow: var(--shadow-panel); font-size: 14px; color: var(--text-mid);
+}
+.talkers-pop .tp-title { padding: 4px 8px; color: var(--text-muted); font-size: 12px; }
+.talkers-pop .tp-item { padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+.talkers-pop .tp-item:hover { background: var(--bg-elevated); }
+@media (max-width: 768px) {
+  .talkers-pop { left: 0 !important; right: 0; top: auto !important; bottom: 0; max-width: none; border-radius: 12px 12px 0 0; padding: 8px 8px 16px; }
+  .talkers-pop .tp-item { min-height: 44px; display: flex; align-items: center; font-size: 16px; }
+  .msg .tnick, .msg .tmore { padding: 4px 0; }
+}
 .nick-item { cursor: pointer; }
 
 /* ── Unit detail modal ── */
@@ -781,6 +876,29 @@ body::after {
   font-size: 12px;
 }
 .unit-modal-meta-label { color: var(--text-faint); }
+.tg-field { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tg-field-input {
+  flex: 1; min-width: 0; padding: 2px 6px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 3px; color: var(--text); font-family: inherit; font-size: 12px;
+}
+.tg-field-input:focus { outline: none; border-color: var(--irc-info); }
+.tg-field-input:disabled { background: transparent; border-color: transparent; color: var(--text-muted); padding-left: 0; }
+.tg-field-status { font-size: 11px; min-width: 14px; }
+.opt-fold { cursor: pointer; user-select: none; }
+.opt-fold:hover { color: var(--text); }
+.opt-hint { padding: 0 20px 8px; font-size: 11px; color: var(--text-faint); }
+.opt-scroll { overflow-y: auto; flex: 1; min-height: 0; }
+.opt-section { border-top: 1px solid var(--border); }
+.opt-body { padding: 0 20px 14px; display: flex; flex-direction: column; gap: 8px; }
+.opt-btn { background: none; border: 1px solid var(--border); border-radius: 3px; color: var(--text-mid); font-family: inherit; font-size: 12px; cursor: pointer; padding: 2px 10px; white-space: nowrap; }
+.opt-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.opt-list { display: flex; flex-direction: column; gap: 6px; }
+.opt-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.opt-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-hover, var(--border)); cursor: pointer; padding: 0; flex-shrink: 0; }
+.opt-dot.none { background: repeating-linear-gradient(45deg, transparent 0 4px, var(--border) 4px 5px); }
+.opt-name { font-weight: 500; }
+.opt-count { margin-left: auto; font-size: 11px; color: var(--text-faint); }
+.tg-edit-note { grid-column: 1 / -1; font-size: 11px; color: var(--text-faint); }
 .unit-modal-meta-value { color: var(--text-muted); font-family: inherit; font-size: 11px; }
 .unit-modal-section {
   border-top: 1px solid var(--border);
@@ -991,9 +1109,6 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
   /* Status bar */
   .statusbar { font-size: 11px; padding: 0 6px; }
 
-  /* Nick width smaller on mobile */
-  .nick { max-width: 80px !important; }
-
   /* Larger touch targets for audio play buttons */
   .voice-play {
     min-width: 44px;
@@ -1004,7 +1119,7 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
   }
 
   /* Favorite stars and scan icons always visible (no hover on touch) */
-  .fav-star, .scan-icon { opacity: 1; }
+  .fav-star, .scan-icon, .ign-icon { opacity: 1; }
 
   /* Card-style messages for mobile */
   .msg {
@@ -1046,11 +1161,153 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
 @media (min-width: 769px) {
   .mobile-hamburger { display: none; }
   .mobile-users-btn { display: none; }
+  .mobile-menu-btn { display: none; }
   .drawer-backdrop { display: none !important; }
 }
 
 @media (max-width: 768px) {
   .panel-resizer { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* PHONE LAYOUT, part 2 — one top bar, bottom sheets, finger-sized targets */
+/* ══════════════════════════════════════════════════════════════ */
+
+.tb-dot { display: none; }
+.sheet, .sheet-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  /* The visible height, so the command box is not under the browser's toolbar */
+  html, body { height: 100dvh; }
+  .trp-header { display: none !important; }
+  .statusbar { display: none; }
+
+  /* One top bar: ☰ · dot · channel ▾ · LISTEN · 👥 · ⋯ */
+  .titlebar { height: 48px; padding: 0 4px; gap: 2px; }
+  .titlebar .server, .titlebar .tb-dash, .titlebar #titlebar-edit-btn, .titlebar #sync-btn, .titlebar #opts-btn { display: none !important; }
+  .mobile-hamburger { width: 44px; height: 44px; flex: 0 0 44px; }
+  .tb-dot { display: block; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; margin-right: 6px; background: var(--danger); }
+  .tb-dot.connected { background: var(--success); }
+  .tb-dot.connecting { background: var(--warning); animation: blink 1s infinite; }
+  #titlebar-chan {
+    flex: 1 1 0; min-width: 0; height: 44px; line-height: 44px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 15px; font-weight: 600; color: var(--text); cursor: pointer;
+  }
+  /* Before the name, so the ellipsis on a long name cannot hide it */
+  #titlebar-chan::before { content: '▾ '; color: var(--irc-info); font-weight: 400; }
+  .listen-btn { height: 40px; padding: 0 10px; font-size: 13px; }
+  .listen-ctl { margin: 0 2px; }
+  /* Mode and volume live in the ⋯ sheet on a phone (moved there by placeListenControls) */
+  .sheet .listen-mode { height: 44px; font-size: 16px; flex: 1; padding: 0 8px; }
+  .sheet .listen-vol { width: auto; flex: 1; height: 44px; }
+
+  /* Channel bar: topic and user count only; the actions are in the channel sheet */
+  .channel-bar { height: 34px; padding: 0 12px; gap: 8px; }
+  .channel-bar .chan-name, .channel-bar .chan-edit-btn,
+  .channel-bar .chan-ign-btn:not(#chan-em-clear) { display: none !important; }
+  .channel-bar .chan-topic { font-size: 13px; }
+  .channel-bar #chan-em-clear { height: 30px; }
+  /* Renaming: the edit row takes the whole bar */
+  .channel-bar:has(.chan-edit-row) { height: 56px; padding: 0 8px; }
+  .channel-bar:has(.chan-edit-row) > :not(.chan-edit-row) { display: none !important; }
+  .chan-edit-row { flex: 1; min-width: 0; gap: 8px; }
+  .chan-edit-input { flex: 1; min-width: 0; width: auto; height: 44px; font-size: 16px; padding: 0 10px; }
+  .chan-edit-save, .chan-edit-cancel { height: 44px; padding: 0 12px; font-size: 14px; flex-shrink: 0; }
+
+  /* Channel drawer: tall rows, name + unread + star */
+  .channel-tree { width: min(86vw, 340px); }
+  .tree-header-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tree-header-row { gap: 8px; min-height: 48px; }
+  .read-all-btn { min-height: 36px; padding: 0 10px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+  .tree-search-input { font-size: 16px; height: 40px; }
+  .gs-input { font-size: 16px; height: 40px; }
+  .gs-panel { max-height: 50vh; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .gs-hit { min-height: 44px; box-sizing: border-box; align-items: center; padding: 6px 8px; font-size: 14px; }
+  .gs-more { min-height: 44px; }
+  .tree-btn { min-width: 40px; min-height: 40px; font-size: 16px; }
+  .tree-section-label { min-height: 40px; display: flex; align-items: center; font-size: 13px; }
+  .channel-item { min-height: 42px; font-size: 15px; padding: 0 4px 0 16px; gap: 6px; }
+  .channel-item .unread { font-size: 12px; padding: 1px 6px; }
+  .channel-item .scan-icon, .channel-item .ign-icon, .channel-item .color-icon { display: none; }
+  .channel-item .fav-star {
+    opacity: 1; font-size: 18px; min-width: 40px; min-height: 40px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .ignored-row { min-height: 42px; font-size: 14px; }
+  .ignored-row button { min-height: 34px; padding: 0 10px; font-size: 13px; }
+  .tree-status { padding: 8px 12px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+
+  /* Radio list drawer */
+  .nicklist { width: min(80vw, 300px); }
+  .nick-item { min-height: 40px; display: flex; align-items: center; font-size: 15px; }
+
+  /* Messages: the radio's whole name, then what it said */
+  .msg .nick { max-width: calc(100% - 64px); text-align: left; padding-right: 0; min-width: 0; font-size: 14px; }
+  .msg.call-group-first::before, .msg.call-group-mid::before, .msg.call-group-last::before { left: 3px; }
+  .msg.call-group-mid .ts, .msg.call-group-last .ts { visibility: visible; }
+  /* A finger-sized hit area without making every line taller */
+  .voice-play { min-width: 0; min-height: 0; display: inline; position: relative; padding: 0 6px; font-size: 18px; }
+  .voice-play::after { content: ''; position: absolute; inset: -12px -12px; }
+
+  /* Player */
+  .player-inner { gap: 6px; padding: 4px 8px; }
+  .player-btn, .player-btn.player-skip, .player-btn.player-close { width: 42px; height: 42px; font-size: 16px; }
+  .player-info { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  .player-nick { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .player-chan { display: none; }
+  .player-time { white-space: nowrap; }
+  .player-progress { flex: 0 1 60px; min-width: 24px; height: 6px; }
+
+  /* Command box: 16px so iOS does not zoom the page on focus */
+  .input-area { padding-bottom: env(safe-area-inset-bottom); }
+  .input-prompt { display: none; }
+  .input-field { font-size: 16px; min-height: 44px; }
+
+  /* Radio dialog: full screen, big name field */
+  .unit-modal-box { width: 100%; max-width: none; height: 100dvh; max-height: none; border: 0; border-radius: 0; }
+  .unit-modal-close { top: 4px; right: 4px; width: 44px; height: 44px; font-size: 28px; }
+  .unit-modal-header { padding: 16px 52px 12px 16px; }
+  .unit-modal-tag-row { padding: 0 16px 12px; }
+  .unit-modal-tag-input { font-size: 16px; height: 48px; padding: 0 12px; min-width: 0; }
+  .unit-modal-save { height: 48px; padding: 0 18px; font-size: 15px; }
+  .unit-modal-meta { padding: 0 16px 12px; font-size: 13px; }
+  .unit-modal-meta-value { font-size: 13px; }
+
+  /* Bottom sheets */
+  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1100; }
+  .sheet-backdrop.visible { display: block; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1101;
+    max-height: 85dvh; overflow-y: auto;
+    background: var(--bg-surface); border-top: 1px solid var(--border-hover);
+    border-radius: 14px 14px 0 0; box-shadow: 0 -8px 32px rgba(0,0,0,0.25);
+    padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
+    font-family: var(--font-mono), monospace;
+  }
+  .sheet.open { display: block; }
+  .sheet-title {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);
+    padding: 10px 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sheet-actions { display: flex; flex-direction: column; gap: 6px; }
+  .sheet-actions button {
+    min-height: 48px; width: 100%; text-align: left; padding: 0 14px;
+    background: var(--bg); border: 1px solid var(--border-hover); border-radius: 8px;
+    color: var(--text); font-family: inherit; font-size: 15px; cursor: pointer;
+  }
+  .sheet-actions button.on { color: var(--irc-warning); border-color: var(--irc-warning); }
+  .sheet-actions button.danger { color: var(--danger); }
+  .sheet-row { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 4px; }
+  .sheet-label { font-size: 14px; color: var(--text-mid); flex: 0 0 64px; }
+  .sheet-themes { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 4px 4px; }
+  .sheet-theme {
+    min-height: 44px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--border-hover); color: var(--text);
+    font-family: inherit; font-size: 13px; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .sheet-theme.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .sheet-theme i { width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(128,128,128,0.4); display: inline-block; }
 }
 
 /* A call not transcribed (skipped, failed): its reason, muted. A call waiting for its recording. */
@@ -1062,13 +1319,16 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
 
 <div class="titlebar">
   <button class="mobile-hamburger" id="mobile-hamburger" aria-label="Open channels">☰</button>
+  <span class="tb-dot connecting" id="tb-dot" aria-hidden="true"></span>
   <span class="server">trunk-pro</span>
-  <span>—</span>
+  <span class="tb-dash">—</span>
   <span id="titlebar-chan">*status</span>
   <button class="chan-edit-btn" id="titlebar-edit-btn" title="Edit channel name">&#9998;</button>
   <span class="topic" id="titlebar-topic">Connecting...</span>
   <button class="mobile-hamburger mobile-users-btn" id="mobile-users-btn" aria-label="Open users">👥</button>
   <span class="lag" id="titlebar-lag"></span>
+  <button class="listen-btn" id="sync-btn" disabled>SYNC n/a</button>
+  <button class="listen-btn" id="opts-btn" title="Options: label colors by tag">&#9881; OPTIONS</button>
   <span class="listen-ctl" id="listen-ctl">
     <button class="listen-btn" id="listen-btn" title="Listen live: hear the calls as they happen (the mode picks which channels)"><svg class="listen-glyph" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M2 10V8a6 6 0 0 1 12 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="1.5" y="9" width="3" height="5" rx="1" fill="currentColor"/><rect x="11.5" y="9" width="3" height="5" rx="1" fill="currentColor"/></svg><span id="listen-label">LISTEN</span><span class="listen-count" id="listen-count"></span></button>
     <select class="listen-mode" id="listen-mode" title="What to hear live">
@@ -1078,6 +1338,7 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
     </select>
     <input type="range" class="listen-vol" id="listen-vol" min="0" max="100" value="80" title="Live volume">
   </span>
+  <button class="mobile-hamburger mobile-menu-btn" id="mobile-menu-btn" aria-label="More">⋯</button>
 </div>
 
 <div class="main">
@@ -1091,6 +1352,13 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
       <input class="tree-search-input" id="tree-search" type="text"
              placeholder="Search channels..." spellcheck="false" autocomplete="off">
       <span class="tree-search-clear" id="tree-search-clear">✕</span>
+      <button class="tree-btn" id="tree-expand" title="Expand all groups">⊞</button>
+      <button class="tree-btn" id="tree-collapse" title="Collapse all groups">⊟</button>
+    </div>
+    <div class="gs-box" id="search-box">
+      <input class="gs-input" id="global-search" type="text"
+             placeholder="Search transcripts..." spellcheck="false" autocomplete="off">
+      <div class="gs-panel" id="search-panel" hidden><div id="search-results"></div></div>
     </div>
     <div class="tree-scroll" id="tree-scroll"></div>
     <div class="tree-status" id="tree-status">
@@ -1105,7 +1373,12 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
       <button class="chan-edit-btn" id="chan-edit-btn" title="Edit channel name">&#9998;</button>
       <span class="chan-mode" id="chan-mode"></span>
       <span class="chan-topic" id="chan-topic">Connecting to the recorder...</span>
+      <button class="chan-edit-btn" id="chan-desc-btn" title="Edit this talkgroup's description on the recorder">&#9998;</button>
       <span class="chan-count" id="chan-count"></span>
+      <button class="chan-ign-btn" id="chan-em-clear" style="display:none" title="Clear the Emergency channel; it comes back with the next emergency call">&#10005; Clear emergencies</button>
+      <button class="chan-ign-btn" id="chan-star" style="display:none"></button>
+      <button class="chan-ign-btn" id="chan-ign-local" style="display:none"></button>
+      <button class="chan-ign-btn" id="chan-ign-rec" style="display:none"></button>
     </div>
     <div class="messages" id="messages"></div>
     <div class="typing-bar" id="typing-bar"></div>
@@ -1154,6 +1427,21 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
 </div>
 <div class="nick-tooltip" id="nick-tooltip"></div>
 
+<!-- Phone only: bottom sheets. Their buttons press the desktop controls, so there is one code path. -->
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<div class="sheet" id="chan-sheet" role="dialog" aria-label="Channel actions">
+  <div class="sheet-title" id="chan-sheet-title"></div>
+  <div class="sheet-actions" id="chan-sheet-actions"></div>
+</div>
+<div class="sheet" id="menu-sheet" role="dialog" aria-label="More">
+  <div class="sheet-title">Live listening</div>
+  <div class="sheet-row" id="sheet-listen-row"><span class="sheet-label">Hear</span></div>
+  <div class="sheet-row" id="sheet-vol-row"><span class="sheet-label">Volume</span></div>
+  <div class="sheet-actions" id="menu-sheet-actions"></div>
+  <div class="sheet-title">Theme</div>
+  <div class="sheet-themes" id="sheet-themes"></div>
+</div>
+
 <div id="unit-modal" class="unit-modal">
   <div class="unit-modal-box">
     <button class="unit-modal-close">&times;</button>
@@ -1180,6 +1468,9 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
 <script type="module">
 // The recorder's own client library, served by the recorder on this port.
 import { TrunkClient, LivePlayer, systemName } from "/api/client.js";
+import { unreadList, stepUnread, tabTitle } from "./unread.js";
+import { createSearch, safeSnippet } from "./search.js";
+import { talkerParts, talkersText } from "./talkers.js";
 
 // ══════════════════════════════════════════════════════════════
 // TODO — Enhancement ideas
@@ -1196,17 +1487,27 @@ import { TrunkClient, LivePlayer, systemName } from "/api/client.js";
 
 // ══════════════════════════════════════════════════════════════
 // CONFIG — the transcribe plugin's HTTP API
-// Default http://127.0.0.1:8767; ?transcribe=http://host:port in the URL, or /api <url>,
-// sets it, and it is remembered (localStorage). The recorder is the page's own host.
+// Default: this page's own host, port 8767 (the plugin runs beside the recorder), over https when the
+// page is (a browser blocks http from an https page). /api <url> sets
+// it and it is remembered (localStorage); ?transcribe=http://host:port in the URL overrides it
+// for that page load only, and is never remembered (a crafted link can't re-point the page for good).
 // ══════════════════════════════════════════════════════════════
 const params = new URLSearchParams(location.search);
-const TRANSCRIBE_DEFAULT = 'http://127.0.0.1:8767';
+const TRANSCRIBE_DEFAULT = `${location.protocol === 'https:' ? 'https:' : 'http:'}//${location.hostname || '127.0.0.1'}:8767`;
+function cleanHttpBase(v) {
+  try {
+    const u = new URL(v);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return (u.origin + u.pathname).replace(/\/+$/, '');
+  } catch (e) { return null; }
+}
 function loadTranscribeBase() {
-  const fromUrl = params.get('transcribe');
-  if (fromUrl) localStorage.setItem('irc_transcribe', fromUrl);
-  return (fromUrl || localStorage.getItem('irc_transcribe') || TRANSCRIBE_DEFAULT).replace(/\/+$/, '');
+  const fromUrl = cleanHttpBase(params.get('transcribe') || '');
+  if (fromUrl) return fromUrl;
+  return cleanHttpBase(localStorage.getItem('irc_transcribe') || '') || TRANSCRIBE_DEFAULT;
 }
 let TRANSCRIBE_BASE = loadTranscribeBase();
+let badTranscriptWarned = false;
 
 const MAX_MESSAGES = 500;        // per channel scrollback
 const NICK_WIDTH = 130;          // px
@@ -1237,6 +1538,13 @@ function nickColor(nick) {
 // { chanName: { tgid, system_id, alpha_tag, description, tag, group, mode, users: Map<unit_id, {nick, prefix, role}>, messages: [] } }
 const channels = new Map();
 const channelUnread = new Map();
+const channelLastMsgTs = new Map();   // channel -> when its latest unread message came (orders the Unread section)
+const channelReadAt = new Map();      // channel -> when it was last read (a message counted unread before that was read)
+/** A channel's unread count goes to 0: read now. */
+function markChannelRead(ch) {
+  channelUnread.set(ch, 0);
+  channelReadAt.set(ch, Date.now());
+}
 
 // Reverse lookups
 // system_id is a system's short name (the recorder's), everywhere in the page.
@@ -1254,6 +1562,10 @@ const STATUS_CHANNEL = '*status';
 
 // Starred meta-channel: aggregates all favorited talkgroup activity
 const STARRED_CHANNEL = '\u2605 Starred';
+const EMERGENCY_CHANNEL = '\u26A0 Emergency';   // every emergency call, from any talkgroup, with its origin tagged
+// Clearing the Emergency channel removes it until the next emergency; history older than the clear is not loaded back.
+let emergencyClearedAt = (() => { try { return Number(localStorage.getItem('irc_emerg_cleared')) || 0; } catch { return 0; } })();
+function isMetaChannel(name) { return name === STATUS_CHANNEL || name === STARRED_CHANNEL || name === EMERGENCY_CHANNEL; }
 
 // The connection to the recorder serving this page (client.js reconnects by itself). The frequent
 // monitorEvent kinds (affiliations among them) come only to a connection that subscribes to the
@@ -1275,6 +1587,119 @@ function saveNameOverrides() {
   localStorage.setItem('irc-names', JSON.stringify(nameOverrides));
 }
 
+// ── Name sync with the recorder ──
+// With control access (the recorder sends `configPath` in `hello` only to control interfaces) a rename is
+// written to the recorder; the recorder's names win on the way back. Listen access: renames stay here.
+let hasControl = false;
+let descEditActive = false;
+const descPending = new Set();   // "short:tgid" whose description was sent and not yet confirmed
+const pendingRenames = new Set();   // "tg:short:tgid" / "unit:short:unit": renamed here, not yet on the recorder
+function syncPref() { try { return localStorage.getItem('irc_sync') !== '0'; } catch { return true; } }
+function syncOn() { return hasControl && syncPref(); }
+function updateSyncUI() {
+  updateIgnoreBar();
+  const b = document.getElementById('sync-btn');
+  if (!b) return;
+  b.textContent = hasControl ? (syncPref() ? 'SYNC' : 'SYNC off') : 'SYNC n/a';
+  b.classList.toggle('active', syncOn());
+  b.disabled = !hasControl;
+  b.title = hasControl
+    ? 'Renames are written to the recorder and read back from it. Click to turn off (keep renames in this browser).'
+    : 'No control access: renames stay in this browser (the interface needs control access to write names).';
+}
+function setSync(on) {
+  try { localStorage.setItem('irc_sync', on ? '1' : '0'); } catch { /* storage blocked */ }
+  updateSyncUI();
+}
+function localRenameCount() { return Object.keys(nameOverrides.tg).length + Object.keys(nameOverrides.unit).length; }
+/** A sync outcome the user should see: in the channel they are looking at (the status channel is easy to miss). */
+function syncNotice(text) {
+  addMsg(activeChannel, { ts: ts(), kind: 'notice', text });
+}
+/** /sync [on|off|status|push|pull confirm] */
+function syncCommand(arg, parts2) {
+  const say = (text) => addMsg(activeChannel, { ts: ts(), kind: 'notice', text });
+  if (arg === 'on' || arg === 'off') {
+    if (!hasControl) { say('Sync needs control access; this interface only has listen access, so renames stay in this browser.'); return; }
+    setSync(arg === 'on');
+    say(arg === 'on' ? 'Sync on: renames are written to the recorder' : 'Sync off: renames stay in this browser');
+    return;
+  }
+  if (arg === undefined || arg === 'status') {
+    say(`Sync: ${hasControl ? (syncPref() ? 'on' : 'off') : 'n/a (listen access)'} · ${localRenameCount()} rename(s) kept only in this browser · ${pendingRenames.size} pending`);
+    return;
+  }
+  if (arg === 'push') { syncPush(say); return; }
+  if (arg === 'pull') { syncPull(say, parts2 === 'confirm'); return; }
+  say('Usage: /sync [on|off|status|push|pull]');
+}
+
+/** /sync push: write the renames kept only in this browser to the recorder; clear the ones that were saved. */
+async function syncPush(say) {
+  if (!hasControl) { say('Sync needs control access; nothing to push to.'); return; }
+  if (!rec.connected) { say('The recorder is not connected.'); return; }
+  const split = (key) => { const i = key.lastIndexOf(':'); return [key.slice(0, i), key.slice(i + 1)]; };
+  const tgs = Object.entries(nameOverrides.tg);
+  const bySys = new Map();
+  for (const [key, name] of Object.entries(nameOverrides.unit)) {
+    const [sys, unit] = split(key);
+    if (!bySys.has(sys)) bySys.set(sys, []);
+    bySys.get(sys).push({ key, unit: Number(unit), name });
+  }
+  if (!tgs.length && !bySys.size) { say('Nothing to push: no renames are kept only in this browser.'); return; }
+  let tgFailed = 0;
+  for (const [key, name] of tgs) {
+    const [sys, tg] = split(key);
+    pendingRenames.add(`tg:${key}`);
+    // Cleared here by handleTalkgroupEdited when the recorder confirms.
+    const r = await writeTalkgroup(sys, tg, { alphaTag: name });
+    if (r.error) { tgFailed++; say(`Could not save ${name} for ${key}: ${r.error} (kept here)`); }
+  }
+  if (tgs.length) say(`Saved ${tgs.length - tgFailed} of ${tgs.length} channel name(s) on the recorder`);
+  if (bySys.size && !unitNamesSupported()) {
+    say(`Radio names stay in this browser: ${UNIT_NAMES_UNSUPPORTED}`);
+    return;
+  }
+  for (const [sys, list] of bySys) {
+    const r = await writeUnitNames(sys, list.map(e => ({ unit: e.unit, name: e.name })));
+    if (r.ok) {
+      for (const e of list) { delete nameOverrides.unit[e.key]; pendingRenames.delete(`unit:${e.key}`); }
+      saveNameOverrides();
+      say(`Saved ${list.length} radio name(s) on ${systemNames.get(sys) || sys}`);
+    } else {
+      say(`Could not save radio names on ${systemNames.get(sys) || sys}: ${r.error} (kept here)`);
+    }
+  }
+}
+
+/** /sync pull confirm: throw away the renames kept in this browser; the recorder's names show again. */
+function syncPull(say, confirmed) {
+  const n = localRenameCount();
+  if (!n) { say('Nothing to discard: no renames are kept only in this browser.'); return; }
+  if (!confirmed) { say(`This discards ${n} rename(s) kept only in this browser. Type /sync pull confirm to do it.`); return; }
+  const tgKeys = Object.keys(nameOverrides.tg), unitKeys = Object.keys(nameOverrides.unit);
+  nameOverrides.tg = {}; nameOverrides.unit = {};
+  saveNameOverrides();
+  pendingRenames.clear();
+  for (const key of tgKeys) {
+    const chanName = tgidToChannel.get(key);
+    const state = chanName && channels.get(chanName);
+    if (state) applyChannelName(state, tgMeta(state.system_id, state.tgid).alphaTag || '');
+  }
+  for (const uk of unitKeys) {
+    const i = uk.lastIndexOf(':');
+    const sys = uk.slice(0, i), unit = Number(uk.slice(i + 1));
+    let oldNick = null;
+    for (const ch of channels.values()) { const u = ch.users.get(uk); if (u) { oldNick = u.nick; break; } }
+    unitNickCache.delete(uk);
+    const fresh = resolveNick(sys, unit, '', 'event');
+    if (oldNick) changeNick(uk, oldNick, fresh);
+  }
+  renderNicklist();
+  renderTree();
+  say(`Discarded ${n} rename(s); the recorder's names show again`);
+}
+
 // Connection state (sseConnection: the transcribe plugin's event stream)
 let sseConnection = null;
 let connectionState = 'disconnected'; // connecting, connected, disconnected
@@ -1294,7 +1719,91 @@ const callSrcLists = new Map();
 
 // Activity tracking for channel tree collapse
 const channelHasActivity = new Set();   // channels with real messages
-const groupCollapsed = new Map();       // group collapse state (true = show all, false = collapsed)
+const groupOpen = new Map();            // group name -> true (open) / false (closed); unset: open only if it holds the active channel
+let favCollapsed = (() => { try { return localStorage.getItem('irc_fav_collapsed') === '1'; } catch { return false; } })();
+let unreadCollapsed = (() => { try { return localStorage.getItem('irc_unread_collapsed') === '1'; } catch { return false; } })();
+function loadGroupState() {
+  try {
+    const o = JSON.parse(localStorage.getItem('irc_groups') || '{}');
+    for (const [g, v] of Object.entries(o)) if (typeof v === 'boolean') groupOpen.set(g, v);
+  } catch { /* corrupt or blocked storage: start with none */ }
+}
+function saveGroupState() {
+  try { localStorage.setItem('irc_groups', JSON.stringify(Object.fromEntries(groupOpen))); } catch { /* storage blocked */ }
+}
+loadGroupState();
+
+// ── Ignoring talkgroups ──
+// Local: hidden here only (irc_ignored, "short:tg" keys). Recorder: the talkgroup file's Ignore column, written
+// with setTalkgroup (control access); the recorder then stops recording it for everyone.
+const ignoredLocal = (() => { try { return new Set(JSON.parse(localStorage.getItem('irc_ignored') || '[]')); } catch { return new Set(); } })();
+function saveIgnoredLocal() { try { localStorage.setItem('irc_ignored', JSON.stringify([...ignoredLocal])); } catch { /* storage blocked */ } }
+let ignoredOpen = (() => { try { return localStorage.getItem('irc_ignored_open') === '1'; } catch { return false; } })();
+function isIgnoredLocal(ch) { const k = channelKey(ch); return Boolean(k) && ignoredLocal.has(k); }
+function isIgnoredRecorder(ch) {
+  const st = channels.get(ch);
+  return Boolean(st && st.tgid && rec.talkgroups(st.system_id).get(st.tgid)?.ignore);
+}
+function isIgnored(ch) { return isIgnoredLocal(ch) || isIgnoredRecorder(ch); }
+/** The channel bar's ignore buttons: shown for a talkgroup channel, lit when it is ignored. */
+function updateIgnoreBar() {
+  const local = document.getElementById('chan-ign-local');
+  const recBtn = document.getElementById('chan-ign-rec');
+  if (!local || !recBtn) return;
+  const isTg = Boolean(channelKey(activeChannel));
+  // Star, and the description (the recorder's, which can change under us): the same bar.
+  const star = document.getElementById('chan-star');
+  if (star) {
+    const fav = isTg && isFavorite(activeChannel);
+    star.style.display = isTg ? '' : 'none';
+    star.classList.toggle('on', fav);
+    star.textContent = fav ? '\u2605 Starred' : '\u2606 Star';
+    star.title = fav ? 'Take this talkgroup out of Starred' : 'Add this talkgroup to Starred';
+  }
+  const emClear = document.getElementById('chan-em-clear');
+  if (emClear) emClear.style.display = activeChannel === EMERGENCY_CHANNEL ? '' : 'none';
+  const descBtn = document.getElementById('chan-desc-btn');
+  if (descBtn) descBtn.style.display = isTg && syncOn() && !descEditActive ? 'inline-block' : 'none';
+  const st = channels.get(activeChannel);
+  if (isTg && st && !descEditActive) {
+    const topic = st.description || st.tag || '';
+    const t1 = document.getElementById('chan-topic'), t2 = document.getElementById('titlebar-topic');
+    if (t1 && t1.textContent !== topic) t1.textContent = topic;
+    if (t2 && t2.textContent !== topic) t2.textContent = topic;
+  }
+  const il = isTg && isIgnoredLocal(activeChannel), ir = isTg && isIgnoredRecorder(activeChannel);
+  local.style.display = isTg ? '' : 'none';
+  local.classList.toggle('on', il);
+  local.textContent = il ? '\uD83D\uDEAB Ignored here (show)' : '\uD83D\uDEAB Ignore here';
+  local.title = il ? 'Stop ignoring this talkgroup in this browser' : 'Hide this talkgroup in this browser';
+  recBtn.style.display = isTg && (syncOn() || ir) ? '' : 'none';
+  recBtn.classList.toggle('on', ir);
+  recBtn.textContent = ir ? '\u26D4 Recorder ignores it (record)' : '\u26D4 Ignore on recorder';
+  recBtn.title = ir ? 'Tell the recorder to record this talkgroup again' : 'Tell the recorder to stop recording this talkgroup for everyone';
+}
+function toggleIgnoreLocal(ch) {
+  const k = channelKey(ch);
+  if (!k) return;
+  if (ignoredLocal.has(k)) ignoredLocal.delete(k); else { ignoredLocal.add(k); markChannelRead(ch); }
+  saveIgnoredLocal();
+  liveWantedChanged();
+  renderTree();
+}
+function setIgnoreRecorder(ch, on) {
+  const st = channels.get(ch);
+  if (!st || !st.tgid) return;
+  if (!syncOn()) { syncNotice('Ignoring on the recorder needs control access with Sync on.'); return; }
+  if (on && !confirm(`Tell the recorder to ignore ${ch}? It stops recording this talkgroup for everyone until you un-ignore it.`)) return;
+  syncNotice(`${on ? 'Ignoring' : 'Un-ignoring'} ${ch} on the recorder...`);
+  if (on) markChannelRead(ch);
+  writeTalkgroup(st.system_id, st.tgid, { ignore: on }).then((r) => {
+    if (r.error) syncNotice(`Could not ${on ? 'ignore' : 'un-ignore'} ${ch} on the recorder: ${r.error}`);
+  });
+}
+document.getElementById('chan-em-clear').addEventListener('click', clearEmergency);
+document.getElementById('chan-star').addEventListener('click', () => { if (channelKey(activeChannel)) toggleFavorite(activeChannel); });
+document.getElementById('chan-ign-local').addEventListener('click', () => toggleIgnoreLocal(activeChannel));
+document.getElementById('chan-ign-rec').addEventListener('click', () => setIgnoreRecorder(activeChannel, !isIgnoredRecorder(activeChannel)));
 const channelLoading = new Set();       // prevent duplicate lazy-loads
 const channelLoadedCallIds = new Map(); // chanName -> Set<callId> — deduplicate across bootstrap and lazy load
 const channelLoadedEventIds = new Map(); // chanName -> Set<eventId> — deduplicate unit events across bootstrap and lazy load
@@ -1342,12 +1851,118 @@ treeSearchInput.addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(renderTree, 150);
 });
+function setAllGroups(open) {
+  for (const ch of channels.values()) groupOpen.set(ch.group || 'Ungrouped', open);
+  saveGroupState();
+  renderTree();
+}
+document.getElementById('tree-expand').addEventListener('click', () => setAllGroups(true));
+document.getElementById('tree-collapse').addEventListener('click', () => setAllGroups(false));
 treeSearchClear.addEventListener('click', () => {
   treeSearchInput.value = '';
   treeSearchQuery = '';
   treeSearchClear.classList.remove('visible');
   renderTree();
 });
+
+// ── Global transcript search (separate from the channel filter above) ──
+const gsInput = document.getElementById('global-search');
+const gsPanel = document.getElementById('search-panel');
+const gsResults = document.getElementById('search-results');
+const gsEngine = createSearch((p, s) => fetchTranscribe(p, s));
+let gsTimer = 0, gsHits = [], gsSeq = 0;
+function gsNote(html) { gsResults.innerHTML = `<div class="gs-note">${html}</div>`; }
+function gsRender(st, q) {
+  gsHits = st.hits;
+  gsResults.textContent = '';
+  if (!st.hits.length) { gsNote(`No matches for "${esc(q)}"` + (st.failed ? ` (${st.failed} variant(s) failed)` : '')); return; }
+  if (st.failed) { const n = document.createElement('div'); n.className = 'gs-note'; n.textContent = `${st.failed} variant(s) failed`; gsResults.appendChild(n); }
+  st.hits.forEach((h, i) => {
+    const chName = resolveChannel(h.system, h.talkgroup) || `${h.system}/${h.talkgroup}`;
+    // Speakers: the segments' radios, named the way the transcript lines name them.
+    const units = (h.segments || []).map(sg => sg && sg.unit).filter(u => u != null && u !== '');
+    const tp = talkerParts(units, u => resolveNick(h.system, u, ''));
+    const speaker = tp.all.length ? talkersText(tp) : '';
+    const nick = tp.all.length ? tp.all[0].name : null;
+    const row = document.createElement('div'); row.className = 'gs-hit'; row.dataset.i = i;
+    const play = document.createElement('button'); play.className = 'tree-btn gs-play'; play.textContent = '▶'; play.title = 'Play';
+    play.addEventListener('click', e => { e.stopPropagation(); playCall(h.path, nick, chName, null, null, null); });
+    const body = document.createElement('div'); body.className = 'gs-body';
+    const meta = document.createElement('div'); meta.className = 'gs-meta';
+    meta.textContent = `${chName} · ${ts(new Date(h.startMs))}` + (speaker ? ` · ${speaker}` : '');
+    const snipHtml = h.snippet ? safeSnippet(h.snippet) : esc(h.text || '');
+    const snip = document.createElement('div'); snip.className = 'gs-snip'; snip.innerHTML = snipHtml;
+    let full = false;
+    const toggleFull = () => {  // show the full transcript in the row (or back to the snippet)
+      if (!h.text) return;
+      full = !full;
+      if (full) snip.textContent = h.text; else snip.innerHTML = snipHtml;
+    };
+    body.append(meta, snip); row.append(play, body);
+    row.addEventListener('click', () => {
+      const ch = resolveChannel(h.system, h.talkgroup);
+      if (!ch || !channels.has(ch)) { toggleFull(); return; }  // unknown channel: never create one
+      switchChannel(ch);
+      if (gsShowMsg(ch, h.path)) return;
+      if (!channelLoading.has(ch)) { toggleFull(); return; }
+      // History still loading: try once more when it finishes (bounded wait), else show the text here.
+      let waited = 0;
+      const poll = setInterval(() => {
+        waited += 200;
+        if (channelLoading.has(ch) && waited < 5000) return;
+        clearInterval(poll);
+        if (activeChannel === ch && !gsShowMsg(ch, h.path)) toggleFull();
+      }, 200);
+    });
+    gsResults.appendChild(row);
+  });
+  if (st.hasMore) {
+    const b = document.createElement('button'); b.className = 'tree-btn gs-more'; b.textContent = 'Load more';
+    b.addEventListener('click', () => { if (b.disabled) return; b.disabled = true; b.textContent = 'Loading...'; gsMore(q); });
+    gsResults.appendChild(b);
+  }
+}
+/** Scroll the active channel to a call's message and flash it; false when it isn't on the page. */
+function gsShowMsg(ch, path) {
+  if (activeChannel !== ch) return false;
+  const el = messagesEl.querySelector(`[data-call-id="${CSS.escape(String(path))}"]`);
+  if (!el) return false;
+  el.scrollIntoView({ block: 'center' });
+  el.classList.add('gs-flash');
+  setTimeout(() => el.classList.remove('gs-flash'), 2000);
+  return true;
+}
+async function gsGuard(p, q, seq) {
+  try {
+    const st = await p;
+    if (st && seq === gsSeq) gsRender(st, q);
+  } catch (e) {
+    if (seq === gsSeq) gsNote(`Search failed: ${esc(e && e.message || e)}`);
+  }
+}
+function gsRun() {
+  clearTimeout(gsTimer);
+  const q = gsInput.value.trim();
+  const seq = ++gsSeq;
+  if (!q) { gsEngine.cancel(); gsHits = []; gsPanel.hidden = true; gsResults.textContent = ''; return; }
+  gsPanel.hidden = false;
+  gsNote('Searching...');
+  gsGuard(gsEngine.run(q), q, seq);
+}
+function gsMore(q) {
+  const seq = ++gsSeq;
+  gsGuard(gsEngine.more().then(st => st && (st.hits.length || st.query ? st : null)), q, seq);
+}
+gsInput.addEventListener('input', () => {
+  clearTimeout(gsTimer);
+  if (!gsInput.value.trim()) gsRun(); else gsTimer = setTimeout(gsRun, 300);
+});
+gsInput.addEventListener('keydown', e => {
+  if (e.key === '/') e.stopPropagation();  // keep the global '/' focus-chat shortcut out of queries
+  else if (e.key === 'Enter') { if (!e.isComposing) gsRun(); }
+  else if (e.key === 'Escape') { e.stopPropagation(); gsInput.value = ''; gsRun(); }
+});
+gsInput.addEventListener('focus', () => { if (gsInput.value.trim() && gsHits.length) gsPanel.hidden = false; });
 
 // Favorites: Set of "system_id:tgid" keys
 function loadSet(key) {
@@ -1375,8 +1990,571 @@ function toggleFavorite(chanName) {
   saveFavorites();
   updateStarredChannel();
   renderTree();
+  updateIgnoreBar();
   liveWantedChanged();
 }
+
+// ── Per-channel name colors (localStorage only, like renames/ignore-here) ──
+// IBM Carbon categorical palette, two sets in the same order: the 70/60-weight colors read on light themes,
+// the 40/30-weight ones on dark themes. A saved swatch is stored as its hex; the page shows the same slot of
+// whichever set matches the current theme, so a choice follows a light/dark theme switch.
+const CHAN_PALETTE_LIGHT = [
+  '#6929c4', '#1192e8', '#005d5d', '#9f1853', '#fa4d56', '#570408', '#198038',
+  '#002d9c', '#ee538b', '#b28600', '#009d9a', '#012749', '#8a3800', '#a56eff',
+];
+const CHAN_PALETTE_DARK = [
+  '#8a3ffc', '#33b1ff', '#007d79', '#ff7eb6', '#fa4d56', '#fff1f1', '#6fdc8c',
+  '#4589ff', '#d12771', '#d2a106', '#08bdba', '#bae6ff', '#ba4e00', '#d4bbff',
+];
+/** True when the current theme's --bg is dark (themes always set it as a plain color). */
+function isDarkTheme() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  let r, g, b;
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v);
+  if (hex) {
+    const h = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1];
+    [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  } else {
+    const m = /rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i.exec(v);
+    if (!m) return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    [r, g, b] = [m[1], m[2], m[3]].map(Number);
+  }
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+}
+function chanPalette() { return isDarkTheme() ? CHAN_PALETTE_DARK : CHAN_PALETTE_LIGHT; }
+let chanColors = (() => {
+  try { const o = JSON.parse(localStorage.getItem('irc_chan_colors') || '{}'); return (o && typeof o === 'object') ? o : {}; }
+  catch { return {}; }
+})();
+function chanColorKey(chanName) {
+  const ch = channels.get(chanName);
+  return ch ? `${ch.system_id}:${ch.tgid}` : null;
+}
+/** A saved color as shown now: a palette color becomes the same slot of the current theme's set; anything else stays. */
+function resolveSavedColor(c) {
+  if (typeof c !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(c)) return null;
+  const lc = c.toLowerCase();
+  const slot = CHAN_PALETTE_LIGHT.indexOf(lc) >= 0 ? CHAN_PALETTE_LIGHT.indexOf(lc) : CHAN_PALETTE_DARK.indexOf(lc);
+  return slot >= 0 ? chanPalette()[slot] : c;
+}
+function explicitChanColor(chanName) {
+  const k = chanColorKey(chanName);
+  return resolveSavedColor(k && chanColors[k]);
+}
+// Colors by tag (the talkgroup file's Tag column): browser-local, key = the tag in lower case.
+let tagColors = (() => {
+  try { const o = JSON.parse(localStorage.getItem('irc_tag_colors') || '{}'); return (o && typeof o === 'object') ? o : {}; }
+  catch { return {}; }
+})();
+const tagColorKey = (tag) => String(tag || '').trim().toLowerCase();
+function explicitTagColor(tag) { const k = tagColorKey(tag); return k ? resolveSavedColor(tagColors[k]) : null; }
+function setTagColor(tag, color) {
+  const k = tagColorKey(tag);
+  if (!k) return;
+  if (color) tagColors[k] = color; else delete tagColors[k];
+  try { localStorage.setItem('irc_tag_colors', JSON.stringify(tagColors)); } catch { /* storage blocked */ }
+  renderTree();
+}
+function chanTagColor(chanName) {
+  const ch = channels.get(chanName);
+  return ch && ch.tgid ? explicitTagColor(ch.tag) : null;
+}
+/** Fire talkgroups red, law (PD) blue, from the talkgroup file's Tag (fallback: FD / PD in the name). */
+function autoChanColor(chanName) {
+  const ch = channels.get(chanName);
+  if (!ch || !ch.tgid) return null;
+  const tag = String(ch.tag || '');
+  const name = String(ch.alpha_tag || '');
+  if (/^fire/i.test(tag) || /(^|[\s-])FD(\b|$)/i.test(name)) return '#ef4444';
+  if (/^law/i.test(tag) || /(^|[\s-])PD(\b|$)/i.test(name)) return '#3b82f6';
+  return null;
+}
+/** This channel's color wins, then its tag's, then the automatic fire/law one. */
+function getChanColor(chanName) { return explicitChanColor(chanName) || chanTagColor(chanName) || autoChanColor(chanName); }
+function setChanColor(chanName, color) {
+  const k = chanColorKey(chanName);
+  if (!k) return;
+  if (color) chanColors[k] = color; else delete chanColors[k];
+  try { localStorage.setItem('irc_chan_colors', JSON.stringify(chanColors)); } catch { /* storage blocked */ }
+  renderTree();
+}
+/** Swatches + custom picker + reset. o: { cur (saved color or null), eff (shown color), resetLabel, set(color|null) }; onDone runs after a change. */
+function buildColorControls(o, onDone) {
+  const wrap = document.createElement('div');
+  const grid = document.createElement('div');
+  grid.className = 'sw-grid';
+  for (const c of chanPalette()) {
+    const b = document.createElement('button');
+    b.className = 'sw' + (c === o.eff ? ' on' : '');
+    b.style.background = c;
+    b.title = c;
+    b.addEventListener('click', () => { o.set(c); onDone(); });
+    grid.appendChild(b);
+  }
+  wrap.appendChild(grid);
+  const row = document.createElement('div');
+  row.className = 'row';
+  const pick = document.createElement('input');
+  pick.type = 'color';
+  pick.value = o.eff || '#3b82f6';
+  pick.title = 'Custom color';
+  pick.addEventListener('change', () => { o.set(pick.value); onDone(); });
+  const reset = document.createElement('button');
+  reset.className = 'reset';
+  reset.textContent = o.resetLabel;
+  reset.disabled = !o.cur;
+  reset.addEventListener('click', () => { o.set(null); onDone(); });
+  row.append(pick, reset);
+  wrap.appendChild(row);
+  return wrap;
+}
+function buildChanColorControls(chanName, onDone) {
+  const cur = explicitChanColor(chanName);
+  return buildColorControls({
+    cur, eff: getChanColor(chanName),
+    resetLabel: cur ? (chanTagColor(chanName) ? 'Use tag color' : autoChanColor(chanName) ? 'Back to auto' : 'Reset') : 'Auto',
+    set: (c) => setChanColor(chanName, c),
+  }, onDone);
+}
+function buildTagColorControls(tag, onDone) {
+  const cur = explicitTagColor(tag);
+  return buildColorControls({ cur, eff: cur, resetLabel: 'Reset', set: (c) => setTagColor(tag, c) }, onDone);
+}
+// A light/dark theme switch changes which palette a swatch shows: redraw the tree, the popup and the open modal.
+window.addEventListener('themechange', () => {
+  closeChanColorPop();
+  renderTree();
+  if (tgModalChan && channels.has(tgModalChan)) openTgModal(tgModalChan);
+  const om = document.getElementById('opts-modal');
+  if (om && om.classList.contains('visible')) openOptions();
+});
+function closeChanColorPop() {
+  const p = document.getElementById('chan-color-pop');
+  if (p) p.remove();
+  document.removeEventListener('mousedown', onChanColorOutside, true);
+}
+function onChanColorOutside(e) {
+  const p = document.getElementById('chan-color-pop');
+  if (p && !p.contains(e.target)) closeChanColorPop();
+}
+function openColorPop(anchor, build) {
+  closeChanColorPop();
+  const pop = document.createElement('div');
+  pop.id = 'chan-color-pop';
+  pop.className = 'chan-color-pop';
+  pop.appendChild(build(closeChanColorPop));
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(4, Math.min(r.left, window.innerWidth - w - 4)) + 'px';
+  pop.style.top = Math.max(4, Math.min(r.bottom + 4, window.innerHeight - h - 4)) + 'px';
+  setTimeout(() => document.addEventListener('mousedown', onChanColorOutside, true), 0);
+}
+function openChanColorPop(chanName, anchor) {
+  openColorPop(anchor, (done) => buildChanColorControls(chanName, done));
+}
+
+// ── Options (the title bar's OPTIONS button, and the ⋯ sheet on a phone) ──
+function closeOptions() {
+  const m = document.getElementById('opts-modal');
+  if (m) m.classList.remove('visible');
+  closeChanColorPop();
+}
+/** Every tag in use in the talkgroup files, case-folded: [{ tag, count }], sorted. */
+function allTags() {
+  const seen = new Map();
+  for (const sys of systemNames.keys()) {
+    for (const t of rec.talkgroups(sys).values()) {
+      const tag = String(t.tag || '').trim();
+      if (!tag) continue;
+      const k = tagColorKey(tag);
+      const e = seen.get(k) || { tag, count: 0 };
+      e.count++;
+      seen.set(k, e);
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.tag.localeCompare(b.tag, undefined, { sensitivity: 'base' }));
+}
+// What "Back up / move settings" carries: this page's own browser-local choices (colors, favorites, ignores, names,
+// groups, scanner, listen, theme...). Not the transcript server address: that is per machine.
+const SETTINGS_KEY = /^(irc[_-].*|nerd_mode|op_patterns|trp-theme)$/;
+const SETTINGS_SKIP = new Set(['irc_transcribe']);
+function exportSettings() {
+  const settings = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (SETTINGS_KEY.test(k) && !SETTINGS_SKIP.has(k)) settings[k] = localStorage.getItem(k);
+    }
+  } catch { /* storage blocked */ }
+  const blob = new Blob([JSON.stringify({ app: 'trp-interface-irc', version: 1, saved: new Date().toISOString(), settings }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `radio-irc-settings-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  return Object.keys(settings).length;
+}
+/** Read a settings file; returns an error string, or { settings, saved } to apply. */
+function parseSettingsFile(text) {
+  let o;
+  try { o = JSON.parse(text); } catch { return 'not a settings file (not JSON)'; }
+  if (!o || o.app !== 'trp-interface-irc' || !o.settings || typeof o.settings !== 'object') return 'not a Radio IRC settings file';
+  const settings = {};
+  for (const [k, v] of Object.entries(o.settings)) {
+    if (SETTINGS_KEY.test(k) && !SETTINGS_SKIP.has(k) && typeof v === 'string') settings[k] = v;
+  }
+  return Object.keys(settings).length ? { settings, saved: o.saved } : 'the file has no settings in it';
+}
+
+/** One folding section of the Options dialog; its open/closed state is remembered. */
+function optSection(id, title, openByDefault, fill) {
+  const sec = document.createElement('div');
+  sec.className = 'opt-section';
+  let open = openByDefault;
+  try { const v = localStorage.getItem('irc_opts_' + id + '_open'); if (v != null) open = v === '1'; } catch { /* storage blocked */ }
+  const lab = document.createElement('div');
+  lab.className = 'unit-modal-section-label opt-fold';
+  lab.textContent = (open ? '▾ ' : '▸ ') + title;
+  lab.addEventListener('click', () => {
+    try { localStorage.setItem('irc_opts_' + id + '_open', open ? '0' : '1'); } catch { /* storage blocked */ }
+    openOptions();
+  });
+  sec.appendChild(lab);
+  if (open) { const body = document.createElement('div'); body.className = 'opt-body'; fill(body); sec.appendChild(body); }
+  return sec;
+}
+function optButton(label, fn) {
+  const b = document.createElement('button');
+  b.className = 'opt-btn';
+  b.textContent = label;
+  b.addEventListener('click', fn);
+  return b;
+}
+function optNote(text) {
+  const d = document.createElement('div');
+  d.className = 'opt-hint';
+  d.style.padding = '0';
+  d.textContent = text;
+  return d;
+}
+
+function fillColorsSection(body) {
+  body.appendChild(optNote('Colors every talkgroup with that tag. A color set on one channel wins over its tag color, which wins over the automatic fire/law colors.'));
+  const list = document.createElement('div');
+  list.className = 'opt-list';
+  const tags = allTags();
+  if (!tags.length) list.appendChild(optNote('No tags yet: the talkgroup files have not loaded.'));
+  for (const { tag, count } of tags) {
+    const cur = explicitTagColor(tag);
+    const row = document.createElement('div');
+    row.className = 'opt-row';
+    const dot = document.createElement('button');
+    dot.className = 'opt-dot' + (cur ? '' : ' none');
+    if (cur) dot.style.background = cur;
+    dot.title = 'Pick a color for ' + tag;
+    dot.addEventListener('click', () => openColorPop(dot, (done) => buildTagColorControls(tag, () => { done(); openOptions(); })));
+    const name = document.createElement('span'); name.className = 'opt-name'; name.textContent = tag;
+    if (cur) name.style.color = cur;
+    const n = document.createElement('span'); n.className = 'opt-count'; n.textContent = count + (count === 1 ? ' talkgroup' : ' talkgroups');
+    row.append(dot, name, n);
+    list.appendChild(row);
+  }
+  body.appendChild(list);
+}
+
+function fillTranscriptSection(body) {
+  const isDefault = TRANSCRIBE_BASE === TRANSCRIBE_DEFAULT;
+  body.appendChild(optNote(`In use: ${TRANSCRIBE_BASE} (${transcriptState})${isDefault ? ' — the default, this page\'s own host on port 8767' : ''}`));
+  const row = document.createElement('div');
+  row.className = 'tg-field';
+  const input = document.createElement('input');
+  input.className = 'tg-field-input';
+  input.value = TRANSCRIBE_BASE;
+  input.placeholder = 'http://host:port';
+  input.spellcheck = false;
+  const status = document.createElement('span');
+  status.className = 'tg-field-status';
+  const apply = (base) => {
+    if (base) localStorage.setItem('irc_transcribe', base); else localStorage.removeItem('irc_transcribe');
+    TRANSCRIBE_BASE = base || TRANSCRIBE_DEFAULT;
+    connectTranscripts();
+    openOptions();
+  };
+  const save = optButton('Save', () => {
+    const v = cleanHttpBase(input.value);
+    if (!v) { status.textContent = 'needs http://host:port'; status.style.color = 'var(--danger)'; return; }
+    apply(v === TRANSCRIBE_DEFAULT ? '' : v);
+  });
+  input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') save.click(); });
+  row.append(input, save, optButton('Use default', () => apply('')), status);
+  body.appendChild(row);
+  body.appendChild(optNote('The transcribe plugin\'s address. Same as the /api command; kept in this browser only.'));
+}
+
+function fillBackupSection(body) {
+  body.appendChild(optNote('Everything this page keeps in your browser (colors, favorites, ignores, renames kept here, groups, scanner, listen, theme) in one file, to move to another device or keep as a backup. The transcript server address is left out.'));
+  const row = document.createElement('div');
+  row.className = 'tg-field';
+  const status = document.createElement('span');
+  status.className = 'tg-field-status';
+  const file = document.createElement('input');
+  file.type = 'file';
+  file.accept = 'application/json,.json';
+  file.hidden = true;
+  file.addEventListener('change', async () => {
+    const f = file.files && file.files[0];
+    file.value = '';
+    if (!f) return;
+    const r = parseSettingsFile(await f.text());
+    if (typeof r === 'string') { status.textContent = r; status.style.color = 'var(--danger)'; return; }
+    const n = Object.keys(r.settings).length;
+    if (!window.confirm(`Load ${n} settings from this file${r.saved ? ' (saved ' + new Date(r.saved).toLocaleString() + ')' : ''}?\n\nThey replace the same settings in this browser; ones not in the file are kept. The page reloads.`)) return;
+    try { for (const [k, v] of Object.entries(r.settings)) localStorage.setItem(k, v); } catch { status.textContent = 'storage is blocked'; status.style.color = 'var(--danger)'; return; }
+    location.reload();
+  });
+  row.append(
+    optButton('Export…', () => { const n = exportSettings(); status.textContent = `saved ${n} settings`; status.style.color = 'var(--text-muted)'; }),
+    optButton('Import…', () => file.click()),
+    file, status);
+  body.appendChild(row);
+}
+
+function openOptions() {
+  let m = document.getElementById('opts-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'opts-modal';
+    m.className = 'unit-modal';
+    m.addEventListener('click', (e) => { if (e.target === m) closeOptions(); });
+    document.body.appendChild(m);
+  }
+  const keep = m.querySelector('.opt-scroll');
+  const scrollTop = keep ? keep.scrollTop : 0;
+  m.textContent = '';
+  const box = document.createElement('div');
+  box.className = 'unit-modal-box';
+  const close = document.createElement('button');
+  close.className = 'unit-modal-close';
+  close.innerHTML = '&times;';
+  close.addEventListener('click', closeOptions);
+  box.appendChild(close);
+  const head = document.createElement('div');
+  head.className = 'unit-modal-header';
+  const title = document.createElement('span'); title.className = 'unit-modal-uid'; title.textContent = 'Options';
+  head.appendChild(title);
+  box.appendChild(head);
+  const scroll = document.createElement('div');
+  scroll.className = 'opt-scroll';
+  scroll.append(
+    optSection('colors', 'Label colors by tag (this browser)', true, fillColorsSection),
+    optSection('transcripts', 'Transcript server', false, fillTranscriptSection),
+    optSection('backup', 'Back up / move settings', false, fillBackupSection));
+  box.appendChild(scroll);
+  m.appendChild(box);
+  m.classList.add('visible');
+  scroll.scrollTop = scrollTop;
+}
+document.getElementById('opts-btn').addEventListener('click', openOptions);
+document.addEventListener('keydown', (e) => {
+  const m = document.getElementById('opts-modal');
+  if (e.key === 'Escape' && m && m.classList.contains('visible')) closeOptions();
+});
+
+// ── Talkgroup detail modal (click the channel name in the top bar) ──
+let tgModalChan = null;
+function closeTgModal() {
+  tgModalChan = null;
+  const m = document.getElementById('tg-modal');
+  if (m) m.classList.remove('visible');
+}
+/** One editable cell: Enter or leaving the box saves, Escape puts the old value back. onSave returns an error string, or nothing. */
+function buildTgField(value, canEdit, onSave) {
+  const wrap = document.createElement('span');
+  wrap.className = 'tg-field';
+  const input = document.createElement('input');
+  input.className = 'tg-field-input';
+  input.value = value;
+  input.spellcheck = false;
+  input.disabled = !canEdit;
+  const status = document.createElement('span');
+  status.className = 'tg-field-status';
+  let done = value;
+  const commit = () => {
+    const v = input.value.trim();
+    if (v === done) return;
+    const err = onSave(v);
+    if (err) { status.textContent = err; status.style.color = 'var(--danger)'; return; }
+    done = v;
+    status.textContent = '\u2026'; status.style.color = 'var(--text-muted)';
+  };
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    else if (e.key === 'Escape') { input.value = done; input.blur(); }
+  });
+  input.addEventListener('blur', commit);
+  wrap.append(input, status);
+  return wrap;
+}
+/** The values already used for a talkgroup column ('tag' or 'group') in a system, sorted. */
+function pickList(sys, col) {
+  const seen = new Set();
+  for (const t of rec.talkgroups(sys).values()) { const v = String(t[col] || '').trim(); if (v) seen.add(v); }
+  return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+/** A dropdown of the values already in use, plus "Add new...", which asks for the value and then confirms it. */
+function buildTgSelect(value, list, canEdit, onSave, noun) {
+  const wrap = document.createElement('span');
+  wrap.className = 'tg-field';
+  const sel = document.createElement('select');
+  sel.className = 'tg-field-input';
+  sel.disabled = !canEdit;
+  const status = document.createElement('span');
+  status.className = 'tg-field-status';
+  const NEW = '\u0000new';
+  let done = value;
+  const fill = (extra) => {
+    sel.textContent = '';
+    const vals = list.slice();
+    if (extra && !vals.some((x) => x.toLowerCase() === extra.toLowerCase())) vals.push(extra);
+    if (done && !vals.includes(done)) vals.push(done);
+    vals.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    const none = document.createElement('option'); none.value = ''; none.textContent = '(none)'; sel.appendChild(none);
+    for (const v of vals) { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); }
+    const add = document.createElement('option'); add.value = NEW; add.textContent = '+ Add new\u2026'; sel.appendChild(add);
+    sel.value = done;
+  };
+  fill();
+  sel.addEventListener('change', () => {
+    let v = sel.value;
+    if (v === NEW) {
+      const typed = window.prompt(`New ${noun} for this system:`, '');
+      v = typed == null ? '' : typed.trim();
+      if (!v) { sel.value = done; return; }
+      const same = list.find((x) => x.toLowerCase() === v.toLowerCase());
+      if (same) v = same;
+      else if (!window.confirm(`Add a new ${noun} "${v}"?\n\nIt is written to the recorder's talkgroup file for this talkgroup and then shows up in this list for every talkgroup.`)) { sel.value = done; return; }
+      fill(v);
+      sel.value = v;
+    }
+    if (v === done) return;
+    const err = onSave(v);
+    if (err) { status.textContent = err; status.style.color = 'var(--danger)'; sel.value = done; return; }
+    done = v;
+    status.textContent = '\u2026'; status.style.color = 'var(--text-muted)';
+  });
+  sel.addEventListener('keydown', (e) => e.stopPropagation());
+  wrap.append(sel, status);
+  return wrap;
+}
+/** A recorder-side cell: writes it, and says so in the channel if the recorder refuses. */
+function writeField(key, st, fields, what) {
+  if (!rec.connected) return 'offline';
+  writeTalkgroup(st.system_id, st.tgid, fields).then((r) => {
+    if (r.error) syncNotice(`The ${what} was not changed: ${r.error}`);
+    refreshTgModalFor(key);
+  });
+}
+/** Redraw the open modal when it is for this talkgroup and nothing in it is being typed into. */
+function refreshTgModalFor(key) {
+  if (!tgModalChan) return;
+  const m = document.getElementById('tg-modal');
+  if (m && m.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+  const cur = tgModalChan;
+  const st = channels.get(cur);
+  if (st && tgKey(st.system_id, st.tgid) === key) openTgModal(cur);
+}
+function openTgModal(chanName) {
+  const st = channels.get(chanName);
+  if (!st || !st.tgid || isMetaChannel(chanName)) return;
+  tgModalChan = chanName;
+  let m = document.getElementById('tg-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'tg-modal';
+    m.className = 'unit-modal';
+    m.addEventListener('click', (e) => { if (e.target === m) closeTgModal(); });
+    document.body.appendChild(m);
+  }
+  const eff = getChanColor(chanName);
+  const rt = tgMeta(st.system_id, st.tgid);
+  const lastTs = channelLastMsgTs.get(chanName);
+  const rows = [
+    ['Talkgroup ID', String(st.tgid)],
+    ['Mode', rt.mode || ''],
+    ['System', systemNames.get(st.system_id) || String(st.system_id)],
+    ['Radios heard here', String(st.users ? st.users.size : 0)],
+    ['Messages loaded', String(st.messages ? st.messages.length : 0)],
+    ['Unread', String(channelUnread.get(chanName) || 0)],
+    ['Last new message', lastTs ? relativeTime(lastTs) : ''],
+    ['Favorite', isFavorite(chanName) ? 'yes' : 'no'],
+    ['Scanner', isScanned(chanName) ? 'in scanner' : 'no'],
+    ['Ignored', [isIgnoredLocal(chanName) && 'here', isIgnoredRecorder(chanName) && 'on recorder'].filter(Boolean).join(' + ') || 'no'],
+    ['Name color', explicitChanColor(chanName) ? 'custom ' + explicitChanColor(chanName) : chanTagColor(chanName) ? 'from tag ' + chanTagColor(chanName) : (autoChanColor(chanName) ? 'auto ' + autoChanColor(chanName) : 'default')],
+  ];
+  m.textContent = '';
+  const box = document.createElement('div');
+  box.className = 'unit-modal-box';
+  const close = document.createElement('button');
+  close.className = 'unit-modal-close';
+  close.innerHTML = '&times;';
+  close.addEventListener('click', closeTgModal);
+  box.appendChild(close);
+  const head = document.createElement('div');
+  head.className = 'unit-modal-header';
+  const idEl = document.createElement('span'); idEl.className = 'unit-modal-uid'; idEl.textContent = st.tgid;
+  const nameEl = document.createElement('span'); nameEl.className = 'unit-modal-nick'; nameEl.textContent = chanName;
+  if (eff) nameEl.style.color = eff;
+  const sysEl = document.createElement('span'); sysEl.className = 'unit-modal-system'; sysEl.textContent = systemNames.get(st.system_id) || '';
+  head.append(idEl, nameEl, sysEl);
+  box.appendChild(head);
+  const sec = document.createElement('div');
+  sec.className = 'unit-modal-section';
+  const lab = document.createElement('div');
+  lab.className = 'unit-modal-section-label';
+  lab.textContent = 'Name color (this browser)';
+  sec.appendChild(lab);
+  const ctl = buildChanColorControls(chanName, () => openTgModal(chanName));
+  ctl.className = 'tg-color-ctl';
+  sec.appendChild(ctl);
+  box.appendChild(sec);
+  const meta = document.createElement('div');
+  meta.className = 'unit-modal-meta';
+  // Editable cells. Name is kept here (and sent to the recorder when Sync is on); the rest are the recorder's own
+  // talkgroup-file cells, so they need control access + Sync.
+  const key = tgKey(st.system_id, st.tgid);
+  const live = syncOn();
+  const fields = [
+    ['Name', st.alpha_tag, true, (v) => { if (!v) return 'name can\'t be empty'; saveChannelTag(v, chanName); openTgModal(tgidToChannel.get(key) || chanName); }],
+    ['Description', rt.description ?? st.description, live, (v) => writeField(key, st, { description: v }, 'description')],
+    ['Tag', rt.tag ?? st.tag, live, (v) => writeField(key, st, { tag: v }, 'tag'), pickList(st.system_id, 'tag')],
+    ['Group', rt.group ?? '', live, (v) => writeField(key, st, { category: v }, 'group'), pickList(st.system_id, 'group')],
+  ];
+  for (const [k, v, canEdit, onSave, list] of fields) {
+    const l = document.createElement('span'); l.className = 'unit-modal-meta-label'; l.textContent = k;
+    meta.append(l, list ? buildTgSelect(v || '', list, canEdit, onSave, k.toLowerCase()) : buildTgField(v || '', canEdit, onSave));
+  }
+  if (!live) {
+    const n = document.createElement('div'); n.className = 'tg-edit-note';
+    n.textContent = hasControl ? 'Description, tag and group are the recorder\'s: turn Sync on to edit them.' : 'Description, tag and group are the recorder\'s: this interface has listen access only.';
+    meta.appendChild(n);
+  }
+  for (const [k, v] of rows) {
+    const l = document.createElement('span'); l.className = 'unit-modal-meta-label'; l.textContent = k;
+    const val = document.createElement('span'); val.className = 'unit-modal-meta-value'; val.textContent = v || '\u2014';
+    meta.append(l, val);
+  }
+  box.appendChild(meta);
+  m.appendChild(box);
+  m.classList.add('visible');
+}
+chanNameEl.style.cursor = 'pointer';
+chanNameEl.title = 'Talkgroup details';
+chanNameEl.addEventListener('click', () => { if (activeChannel) openTgModal(activeChannel); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && tgModalChan) closeTgModal(); });
 
 // ── Starred meta-channel management ──
 
@@ -1418,6 +2596,45 @@ function destroyStarredChannel() {
   channels.delete(STARRED_CHANNEL);
   channelUnread.delete(STARRED_CHANNEL);
   channelLoadedCallIds.delete(STARRED_CHANNEL);
+}
+
+// ── Emergency meta-channel ──
+// Made the first time an emergency call is seen; collects them all (live and recent history), origin tagged.
+function ensureEmergencyChannel() {
+  if (channels.has(EMERGENCY_CHANNEL)) return channels.get(EMERGENCY_CHANNEL);
+  const st = {
+    tgid: null, system_id: null, alpha_tag: EMERGENCY_CHANNEL,
+    description: 'Emergency calls from every talkgroup',
+    tag: '', group: 'Emergency', mode: '', users: new Map(), messages: [], historyExhausted: true,
+  };
+  channels.set(EMERGENCY_CHANNEL, st);
+  channelUnread.set(EMERGENCY_CHANNEL, 0);
+  return st;
+}
+
+/** Dismiss the Emergency channel: it comes back with the next emergency call, not with the old ones. */
+function clearEmergency() {
+  if (!channels.has(EMERGENCY_CHANNEL)) return;
+  emergencyClearedAt = Date.now();
+  try { localStorage.setItem('irc_emerg_cleared', String(emergencyClearedAt)); } catch { /* storage blocked */ }
+  if (activeChannel === EMERGENCY_CHANNEL) switchChannel(STATUS_CHANNEL);
+  channels.delete(EMERGENCY_CHANNEL);
+  channelUnread.delete(EMERGENCY_CHANNEL);
+  channelLastMsgTs.delete(EMERGENCY_CHANNEL);
+  channelHasActivity.delete(EMERGENCY_CHANNEL);
+  channelLoadedCallIds.delete(EMERGENCY_CHANNEL);
+  channelLoadedEventIds.delete(EMERGENCY_CHANNEL);
+  renderTree();
+}
+
+/** Copy an emergency message into the Emergency channel (a locally ignored talkgroup's too; one the recorder ignores isn't recorded). */
+function forwardToEmergency(sourceChannel, msg) {
+  if (!msg.emergency || msg.kind === 'topic' || msg.kind === 'mode') return;
+  if (isMetaChannel(sourceChannel) || isIgnoredRecorder(sourceChannel)) return;
+  if (msg.date && msg.date.getTime() <= emergencyClearedAt) return;   // from before a clear (catch-up after a reconnect)
+  ensureEmergencyChannel();
+  const copy = Object.assign({}, msg, { originChannel: sourceChannel, _el: null });
+  addMsg(EMERGENCY_CHANNEL, copy, true);
 }
 
 /** Forward a message to the starred channel with an origin tag */
@@ -1664,6 +2881,12 @@ function showNickTooltip(nick, el) {
     html += `<br><span class="tt-label">Last TX:</span> ${ts(lastTx)}`;
   }
 
+  placeTooltip(html, el);
+}
+
+/** Show the tooltip with `html` beside `el`, kept inside the window. */
+function placeTooltip(html, el) {
+  clearTimeout(tooltipTimer);
   nickTooltip.innerHTML = html;
   nickTooltip.style.display = 'block';
 
@@ -1857,6 +3080,210 @@ function closeUnitModal() {
   document.getElementById('unit-modal').classList.remove('visible');
 }
 
+/** A radio's nick changed: update it in every nicklist and in the messages already drawn. */
+function changeNick(uk, oldNick, newNick) {
+  for (const [chanName, ch] of channels) {
+    if (ch.users.has(uk)) ch.users.get(uk).nick = newNick;
+    for (const msg of ch.messages) {
+      if (msg.talkerUnits) {
+        // Several radios' label: made again from their nicks when this radio is one of them.
+        const sid = msg.talkerSys;
+        if (!msg.talkerUnits.some(u => unitKey(sid, u) === uk)) continue;
+        msg.nick = talkersLabel(sid, msg.talkerUnits);
+        if (chanName === activeChannel && msg._el) refreshMsgEl(msg);
+        continue;
+      }
+      if (msg.nick !== oldNick) continue;
+      msg.nick = newNick;
+      if (chanName === activeChannel && msg._el) {
+        const nickNode = msg._el.querySelector('.nick');
+        if (nickNode) {
+          nickNode.textContent = newNick;
+          nickNode.dataset.nick = newNick;
+          nickNode.style.color = nickColor(newNick);
+        } else {
+          refreshMsgEl(msg);
+        }
+      }
+    }
+  }
+}
+
+// ── Radio names on the recorder: its unit-name rows (`unitNames` / `unitNameEdited`, set with setUnitName) ──
+const recNameSeen = new Map();     // "short:unit" → the recorder's name when last looked at (to see it change)
+const exactNameIndex = new WeakMap();   // a system's unitNameRows array → Map(unit ID → name); client.js swaps the array on every change
+
+/** The name on the recorder's exact row for this radio only (regex rows and aliases heard on the air don't count); '' when none. */
+function recExactUnitName(sys, unit) {
+  const rows = rec.unitNameRows?.[sys];
+  if (!rows || !rows.length) return '';
+  let index = exactNameIndex.get(rows);
+  if (!index) {
+    index = new Map();
+    for (const r of rows) {
+      const id = String(r.unit).trim();
+      if (!index.has(id)) index.set(id, String(r.name).trim());   // the first row wins, as a lookup would
+    }
+    exactNameIndex.set(rows, index);
+  }
+  return index.get(String(unit).trim()) || '';
+}
+
+/** Whether the recorder can take radio names (setUnitName / unitNameRows: recorder 0.3.1 and later). */
+function unitNamesSupported() {
+  return typeof rec.setUnitName === 'function' && rec.unitNameRows != null;
+}
+const UNIT_NAMES_UNSUPPORTED = 'this recorder is older than 0.3.1 and cannot take radio names';
+
+// ── Writes to the recorder, one at a time ──
+// The recorder's `error` message doesn't say which command it answers, so only one write waits for its
+// answer at a time: an error that comes meanwhile belongs to it.
+let recWriteChain = Promise.resolve();
+
+/** Send one write and wait for its confirmation (`isAnswer(message)` on `answerType`) or an error; resolves { ok } or { error }.
+ *  `send` returning false means there was nothing to send (no answer will come): { ok } at once. */
+function recWrite(send, answerType, isAnswer, refused) {
+  const run = () => new Promise((resolve) => {
+    if (!rec.connected) { resolve({ error: 'offline' }); return; }
+    let done = false;
+    const offs = [];
+    let t = null;
+    const finish = (r) => { if (done) return; done = true; offs.forEach(f => f()); clearTimeout(t); resolve(r); };
+    offs.push(rec.on(answerType, (m) => { if (isAnswer(m)) finish({ ok: true }); }));
+    offs.push(rec.on('error', (m) => finish({ error: m.message || refused })));
+    t = setTimeout(() => finish({ error: 'no answer from the recorder' }), 8000);
+    try { if (send() === false) finish({ ok: true }); } catch (err) { finish({ error: err.message || String(err) }); }
+  });
+  const next = recWriteChain.then(run, run);
+  recWriteChain = next.catch(() => {});
+  return next;
+}
+
+/** A talkgroup's cells written with setTalkgroup; resolves on the recorder's talkgroupEdited for it. */
+function writeTalkgroup(sys, tgid, fields) {
+  return recWrite(
+    () => rec.setTalkgroup(sys, Number(tgid), fields),
+    'talkgroupEdited', (m) => m.system === sys && Number(m.talkgroup) === Number(tgid),
+    'the recorder refused the talkgroup edit');
+}
+
+/** One radio's name sent with setUnitName; resolves { ok } on the recorder's unitNameEdited, or { error }. */
+function sendUnitEdit(sys, unit, name) {
+  if (!unitNamesSupported()) return Promise.resolve({ error: UNIT_NAMES_UNSUPPORTED });
+  return recWrite(
+    () => {
+      // Nothing to change: not sent. Checked when its turn comes, after the writes before it.
+      if (recExactUnitName(sys, unit) === String(name ?? '').trim()) return false;
+      rec.setUnitName(sys, Number(unit), name ?? '');
+    },
+    'unitNameEdited', (m) => m.system === sys && Number(m.unit) === Number(unit),
+    'the recorder refused the name');
+}
+
+/** Write radio names to the recorder, one at a time; resolves { ok } or { error } (the first that failed). */
+async function writeUnitNames(sys, edits) {
+  if (!rec.connected) return { error: 'offline' };
+  if (!unitNamesSupported()) return { error: UNIT_NAMES_UNSUPPORTED };
+  for (const e of edits) {
+    const r = await sendUnitEdit(sys, e.unit, e.name);
+    if (r.error) return { error: `${e.unit}: ${r.error}` };
+  }
+  return { ok: true };
+}
+
+/** After a radio rename saved here with Sync on: write it, and report. */
+function syncUnitRename(user, newTag, saveStatus, hadLocal) {
+  const key = unitKey(user.systemId, user.unitId);
+  const pendKey = `unit:${key}`;
+  // Clearing a name that was only kept here means "the recorder's name again": nothing to send,
+  // or the recorder's own line would be deleted.
+  if (!newTag && hadLocal) { pendingRenames.delete(pendKey); return; }
+  if (!unitNamesSupported()) {
+    saveStatus.textContent = 'kept here';
+    saveStatus.style.color = 'var(--irc-warning)';
+    syncNotice(`Radio names stay in this browser: ${UNIT_NAMES_UNSUPPORTED}`);
+    return;
+  }
+  pendingRenames.add(pendKey);
+  recNameSeen.set(key, recExactUnitName(user.systemId, user.unitId));
+  if (!rec.connected) {
+    saveStatus.textContent = 'pending';
+    saveStatus.style.color = 'var(--irc-warning)';
+    syncNotice(`Offline: ${newTag || key} is kept here until the recorder is back (/sync push)`);
+    return;
+  }
+  writeUnitNames(user.systemId, [{ unit: user.unitId, name: newTag }]).catch((err) => ({ error: err.message || String(err) })).then((r) => {
+    if (r.ok) {
+      pendingRenames.delete(pendKey);
+      delete nameOverrides.unit[key];
+      saveNameOverrides();
+      recNameSeen.set(key, recExactUnitName(user.systemId, user.unitId));
+      saveStatus.textContent = '\u2713 saved';
+      saveStatus.style.color = 'var(--irc-success)';
+      syncNotice(`Saved ${newTag || '(no name)'} for radio ${user.unitId} on the recorder`);
+    } else {
+      saveStatus.textContent = 'kept here';
+      saveStatus.style.color = 'var(--irc-warning)';
+      syncNotice(`Could not save radio ${user.unitId} on the recorder (${r.error}); kept here (/sync status)`);
+    }
+  });
+}
+
+/** At startup: the recorder's names for the radios renamed here, as they are now, so its next change to one is seen. */
+function seedRecNameSeen() {
+  for (const key of Object.keys(nameOverrides.unit)) {
+    const i = key.lastIndexOf(':');
+    const sys = key.slice(0, i);
+    if (recNameSeen.has(key) || rec.unitNameRows?.[sys] === undefined) continue;
+    recNameSeen.set(key, recExactUnitName(sys, Number(key.slice(i + 1))));
+  }
+}
+
+/** The recorder's config or radio names changed (anyone's edit): show new radio names, and let its names win over ones kept here. */
+function onConfigChanged() {
+  if (!bootstrapped) return;
+  loadSystemNames();
+  for (const key of Object.keys(nameOverrides.unit)) {
+    const i = key.lastIndexOf(':');
+    const sys = key.slice(0, i);
+    if (rec.unitNameRows?.[sys] === undefined) continue;   // its names haven't come yet: nothing to compare with
+    const now = recExactUnitName(sys, Number(key.slice(i + 1)));
+    if (recNameSeen.has(key) && recNameSeen.get(key) !== now) {
+      delete nameOverrides.unit[key];
+      pendingRenames.delete(`unit:${key}`);
+      saveNameOverrides();
+    }
+    recNameSeen.set(key, now);
+  }
+  // Radios shown now: a nick changes only when the recorder's name for that radio did (not on every config
+  // change), and a name stamped on a call or heard on the air isn't overruled by a weaker one.
+  const seen = new Set();
+  for (const ch of channels.values()) {
+    for (const [uk, user] of ch.users) {
+      if (seen.has(uk)) continue;
+      seen.add(uk);
+      if (nameOverrides.unit[uk]) continue;
+      const exact = recExactUnitName(user.systemId, user.unitId);
+      const cached = unitNickCache.get(uk);
+      let fresh = null;
+      if (cached?.fromRec !== undefined ? cached.fromRec !== exact : Boolean(exact)) {
+        // Its own row on the recorder came, changed or was taken out: the recorder's name now (or what's left).
+        unitNickCache.delete(uk);
+        fresh = resolveNick(user.systemId, user.unitId, '', 'event');
+      } else if (!exact && (!cached || SOURCE_PRIORITY[cached.source] <= SOURCE_PRIORITY.event)) {
+        // No row of its own and nothing stronger: a pattern or the alias heard may have changed.
+        const name = recUnitName(user.systemId, user.unitId);
+        if (name && name.trim() && toNick(name, user.unitId) !== user.nick) {
+          unitNickCache.delete(uk);
+          fresh = resolveNick(user.systemId, user.unitId, name, 'event');
+        }
+      }
+      if (fresh && fresh !== user.nick) changeNick(uk, user.nick, fresh);
+    }
+  }
+  renderNicklist();
+}
+
 function saveUnitTag(user, newTag) {
   const saveBtn = document.getElementById('unit-modal-save');
   const saveStatus = document.getElementById('unit-modal-save-status');
@@ -1869,6 +3296,7 @@ function saveUnitTag(user, newTag) {
 
   // Kept in this browser (listen access can't change the recorder's unit names); empty: the recorder's name again.
   const renameKey = unitKey(user.systemId, user.unitId);
+  const hadLocal = Boolean(nameOverrides.unit[renameKey]);
   if (newTag) nameOverrides.unit[renameKey] = newTag;
   else delete nameOverrides.unit[renameKey];
   Promise.resolve()
@@ -1878,44 +3306,20 @@ function saveUnitTag(user, newTag) {
       saveBtn.disabled = true;
       saveStatus.textContent = '\u2713';
       saveStatus.style.color = 'var(--irc-success)';
-      setTimeout(() => { saveStatus.textContent = ''; }, 2000);
+      setTimeout(() => { if (saveStatus.textContent === '\u2713') saveStatus.textContent = ''; }, 2000);
 
       // Bust nick cache and update nick across users + already-rendered messages
       const uk = unitKey(user.systemId, user.unitId);
       const oldNick = user.nick;
       unitNickCache.delete(uk);
-      const newNick = resolveNick(user.systemId, user.unitId, newTag, 'manual');
-
-      for (const [chanName, ch] of channels) {
-        if (ch.users.has(uk)) {
-          ch.users.get(uk).nick = newNick;
-        }
-        let changed = false;
-        for (const msg of ch.messages) {
-          if (msg.nick === oldNick) {
-            msg.nick = newNick;
-            changed = true;
-            if (chanName === activeChannel && msg._el) {
-              const nickNode = msg._el.querySelector('.nick');
-              if (nickNode) {
-                nickNode.textContent = newNick;
-                nickNode.dataset.nick = newNick;
-                nickNode.style.color = nickColor(newNick);
-              } else {
-                refreshMsgEl(msg);
-              }
-            }
-          }
-        }
-        if (changed && chanName !== activeChannel && chanName === STARRED_CHANNEL) {
-          // no-op, kept for symmetry with aggregated channel updates
-        }
-      }
+      const newNick = resolveNick(user.systemId, user.unitId, newTag, newTag ? 'manual' : 'event');
+      changeNick(uk, oldNick, newNick);
 
       user.nick = newNick;
       user.alphaTag = newTag;
       document.getElementById('unit-modal-nick').textContent = newNick;
       renderNicklist();
+      if (syncOn()) syncUnitRename(user, newTag, saveStatus, hadLocal);
     })
     .catch(() => {
       saveBtn.disabled = false;
@@ -1933,8 +3337,54 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && currentModalUnit) closeUnitModal();
 });
 
+/** A radio in a several-radio label: its card, by system and unit (names can repeat). */
+function openTalker(uk, nick) {
+  const state = channels.get(activeChannel);
+  let user = state && state.users.get(uk);
+  if (!user) for (const ch of channels.values()) { if (ch.users.has(uk)) { user = ch.users.get(uk); break; } }
+  if (user) { openUnitModal(user); return; }
+  const found = findUserByNick(nick);
+  if (found) openUnitModal(found.user);
+}
+
+/** The radios of a "+N" label, from the label's own data. */
+function talkersOf(moreEl) {
+  const sys = moreEl.dataset.sys;
+  return talkerParts((moreEl.dataset.units || '').split(',').filter(Boolean).map(Number),
+    u => resolveNick(isNaN(Number(sys)) ? sys : Number(sys), u, '')).all;
+}
+
+const talkersPop = document.createElement('div');
+talkersPop.className = 'talkers-pop';
+document.body.appendChild(talkersPop);
+function hideTalkersPop() { talkersPop.style.display = 'none'; }
+function showTalkersPop(moreEl) {
+  const sysRaw = moreEl.dataset.sys;
+  const sid = isNaN(Number(sysRaw)) ? sysRaw : Number(sysRaw);
+  const all = talkersOf(moreEl);
+  talkersPop.innerHTML = `<div class="tp-title">Radios in this call (${all.length})</div>` +
+    all.map(p => `<div class="tp-item" data-uk="${esc(unitKey(sid, p.unit))}" data-nick="${esc(p.name)}">${esc(p.name)}</div>`).join('');
+  talkersPop.style.display = 'block';
+  const r = moreEl.getBoundingClientRect();
+  const w = talkersPop.offsetWidth, h = talkersPop.offsetHeight;
+  talkersPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+  talkersPop.style.top = (r.bottom + h + 8 > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+}
+talkersPop.addEventListener('click', (e) => {
+  const it = e.target.closest('.tp-item');
+  if (!it) return;
+  hideTalkersPop();
+  openTalker(it.dataset.uk, it.dataset.nick);
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.talkers-pop, .tmore')) hideTalkersPop(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTalkersPop(); });
+
 // Click nick in chat messages → open unit modal (event delegation)
 messagesEl.addEventListener('click', (e) => {
+  const tn = e.target.closest('.msg .tnick');
+  if (tn) { hideNickTooltip(); openTalker(tn.dataset.uk, tn.dataset.nick); return; }
+  const more = e.target.closest('.msg .tmore');
+  if (more) { e.stopPropagation(); hideNickTooltip(); showTalkersPop(more); return; }
   const nickEl = e.target.closest('.msg .nick');
   if (!nickEl) return;
   const nick = nickEl.dataset.nick;
@@ -2020,6 +3470,7 @@ function renameChannel(oldName, newName) {
   channels.set(newName, state);
   channelUnread.set(newName, channelUnread.get(oldName) || 0);
   channelUnread.delete(oldName);
+  if (channelLastMsgTs.has(oldName)) { channelLastMsgTs.set(newName, channelLastMsgTs.get(oldName)); channelLastMsgTs.delete(oldName); }
   if (channelHasActivity.has(oldName)) {
     channelHasActivity.delete(oldName);
     channelHasActivity.add(newName);
@@ -2036,6 +3487,11 @@ function renameChannel(oldName, newName) {
   const key = tgKey(state.system_id, state.tgid);
   tgidToChannel.set(key, newName);
   if (activeChannel === oldName) activeChannel = newName;
+  if (channelReadAt.has(oldName)) { channelReadAt.set(newName, channelReadAt.get(oldName)); channelReadAt.delete(oldName); }
+  // Calls on the air, or waiting for their recording, go on in the channel under its new name
+  // (a rename can come from another browser at any time).
+  for (const lc of liveCalls.values()) if (lc.chanName === oldName) lc.chanName = newName;
+  for (const lc of awaitingPath) if (lc.chanName === oldName) lc.chanName = newName;
 }
 
 /** Build a disambiguated channel suffix for a talkgroup */
@@ -2109,13 +3565,25 @@ function resolveNick(systemId, unitId, alphaTag, source) {
   // A rename made here wins; with no name given, the recorder's (unit names, alias heard).
   const renamed = nameOverrides.unit[key];
   if (renamed) return toNick(renamed, unitId);
-  if (!alphaTag || !alphaTag.trim()) alphaTag = recUnitName(systemId, unitId);
-  const incoming = (source && SOURCE_PRIORITY[source] !== undefined) ? source : 'event';
+  let incoming = (source && SOURCE_PRIORITY[source] !== undefined) ? source : 'event';
+  // A name the recorder holds for this radio beats the one stamped on a call when it was recorded (that one can be old).
+  const exact = recExactUnitName(systemId, unitId);
+  // A nick taken from the recorder's row (fromRec) is stale once that row changed or went.
+  const stale = unitNickCache.get(key);
+  if (stale && stale.fromRec !== undefined && stale.fromRec !== exact) unitNickCache.delete(key);
+  let fromRec;
+  if (exact) {
+    alphaTag = recUnitName(systemId, unitId) || exact;
+    incoming = 'manual';
+    fromRec = exact;
+  } else if (!alphaTag || !alphaTag.trim()) {
+    alphaTag = recUnitName(systemId, unitId);
+  }
   if (alphaTag && alphaTag.trim()) {
     const nick = toNick(alphaTag, unitId);
     const cached = unitNickCache.get(key);
     if (!cached || SOURCE_PRIORITY[incoming] >= SOURCE_PRIORITY[cached.source]) {
-      unitNickCache.set(key, { nick, source: incoming });
+      unitNickCache.set(key, { nick, source: incoming, fromRec });
       return nick;
     }
     return cached.nick;
@@ -2134,6 +3602,14 @@ function resolveNick(systemId, unitId, alphaTag, source) {
 function addMsg(channel, msg, skipForward) {
   const state = channels.get(channel);
   if (!state) return;
+  // Ignored talkgroups show nothing (notices still do, but not an emergency's: that goes to Emergency)
+  if (msg.kind !== 'notice' || msg.emergency) {
+    const hidden = isIgnored(channel) || (channel !== EMERGENCY_CHANNEL && msg.originChannel && isIgnored(msg.originChannel));
+    if (hidden) {
+      if (channel !== EMERGENCY_CHANNEL && !skipForward) forwardToEmergency(channel, msg);   // an emergency still shows
+      return;
+    }
+  }
 
   state.messages.push(msg);
   if (state.messages.length > MAX_MESSAGES) {
@@ -2155,14 +3631,17 @@ function addMsg(channel, msg, skipForward) {
     if (atBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
   } else {
     channelUnread.set(channel, (channelUnread.get(channel) || 0) + 1);
+    channelLastMsgTs.set(channel, Date.now());
+    msg._unreadAt = Date.now();
     renderTree();
   }
 
   eventRate.push(Date.now());
 
   // Forward to starred channel (unless this IS the starred channel or already forwarded)
-  if (!skipForward && channel !== STARRED_CHANNEL && channel !== STATUS_CHANNEL) {
+  if (!skipForward && !isMetaChannel(channel)) {
     forwardToStarred(channel, msg);
+    forwardToEmergency(channel, msg);
   }
 }
 
@@ -2191,7 +3670,19 @@ function buildMsgEl(m) {
     if (m.originChannel) {
       nickHtml += `<span class="origin-tag" data-channel="${esc(m.originChannel)}">${esc(m.originChannel)}</span>`;
     }
-    nickHtml += `<span class="nick" style="color:${color}" data-nick="${esc(m.nick || '')}">${esc(m.nick || '???')}</span>`;
+    // Several radios' label (talkerUnits): the .nick itself has no data-nick (it is no radio's nick); its parts do.
+    if (m.talkerUnits) {
+      // Each radio named in the label is its own target (click: radio card, hover: tooltip); "+N" lists the rest.
+      const parts = talkerParts(m.talkerUnits, u => resolveNick(m.talkerSys, u, ''));
+      const names = parts.shown.map(p =>
+        `<span class="tnick" data-uk="${esc(unitKey(m.talkerSys, p.unit))}" data-nick="${esc(p.name)}">${esc(p.name)}</span>`).join(', ');
+      const more = parts.hidden.length
+        ? ` <span class="tmore" data-sys="${esc(m.talkerSys)}" data-units="${esc(parts.all.map(p => p.unit).join(','))}">+${parts.hidden.length}</span>`
+        : '';
+      nickHtml += `<span class="nick talkers" style="color:${color}">${names}${more}</span>`;
+    } else {
+      nickHtml += `<span class="nick" style="color:${color}" data-nick="${esc(m.nick || '')}">${esc(m.nick || '???')}</span>`;
+    }
 
     // Voice message with audio link (and optional transcription text)
     if (m.callId) {
@@ -2334,8 +3825,8 @@ function refreshMsgEl(m) {
 }
 
 function esc(s) {
-  if (!s) return '';
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (s == null || s === '') return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function serverMsg(text) {
@@ -2392,16 +3883,18 @@ function createChannelItem(ch) {
   const unread = channelUnread.get(ch) || 0;
   el.className = 'channel-item' + (ch === activeChannel ? ' active' : '') + (unread > 0 && ch !== activeChannel ? ' has-activity' : '') + (isAudible(ch) ? ' audible' : '');
 
-  const isStarred = ch === STARRED_CHANNEL;
+  const isEmergency = ch === EMERGENCY_CHANNEL;
+  const isStarred = ch === STARRED_CHANNEL || isEmergency;   // meta channels: no per-channel icons
+  if (isEmergency) el.classList.add('emergency-chan');
 
   const prefix = document.createElement('span');
   prefix.className = 'chan-prefix';
-  prefix.textContent = isStarred ? '\u2605' : '#';
+  prefix.textContent = isEmergency ? '\u26A0' : (isStarred ? '\u2605' : '#');
   el.appendChild(prefix);
 
   const label = document.createElement('span');
   label.className = 'chan-label';
-  label.textContent = isStarred ? 'Starred' : ch.slice(1);
+  label.textContent = isEmergency ? 'Emergency' : (isStarred ? 'Starred' : ch.slice(1));
   el.appendChild(label);
 
   if (unread > 0 && ch !== activeChannel) {
@@ -2416,6 +3909,16 @@ function createChannelItem(ch) {
     const rightCluster = document.createElement('span');
     rightCluster.className = 'channel-icons';
 
+    // Name color picker
+    const colorIcon = document.createElement('span');
+    const myColor = getChanColor(ch);
+    colorIcon.className = 'color-icon' + (explicitChanColor(ch) ? ' active' : '');
+    colorIcon.textContent = '🎨';
+    colorIcon.title = 'Change this channel’s name color';
+    colorIcon.addEventListener('click', (e) => { e.stopPropagation(); openChanColorPop(ch, colorIcon); });
+    rightCluster.appendChild(colorIcon);
+    if (myColor) { el.dataset.chcolor = '1'; el.style.setProperty('--chan-color', myColor); }
+
     // Scan icon
     const scanIcon = document.createElement('span');
     scanIcon.className = 'scan-icon' + (isScanned(ch) ? ' active' : '');
@@ -2426,6 +3929,22 @@ function createChannelItem(ch) {
       toggleScan(ch);
     });
     rightCluster.appendChild(scanIcon);
+
+    // Ignore here (and, with Sync on, on the recorder)
+    const ign = document.createElement('span');
+    ign.className = 'ign-icon';
+    ign.textContent = '\uD83D\uDEAB';
+    ign.title = 'Ignore here (hide it in this browser)';
+    ign.addEventListener('click', (e) => { e.stopPropagation(); toggleIgnoreLocal(ch); });
+    rightCluster.appendChild(ign);
+    if (syncOn()) {
+      const ignRec = document.createElement('span');
+      ignRec.className = 'ign-icon';
+      ignRec.textContent = '\u26D4';
+      ignRec.title = 'Ignore on the recorder (it stops recording this talkgroup for everyone)';
+      ignRec.addEventListener('click', (e) => { e.stopPropagation(); setIgnoreRecorder(ch, true); });
+      rightCluster.appendChild(ignRec);
+    }
 
     // Favorite star
     const star = document.createElement('span');
@@ -2444,21 +3963,34 @@ function createChannelItem(ch) {
   return el;
 }
 
-function isChannelActive(ch) {
-  return channelHasActivity.has(ch) || ch === activeChannel || (channelUnread.get(ch) || 0) > 0;
-}
-
 let treeFrame = 0;
 function renderTree() {
   if (treeFrame) return;
   treeFrame = requestAnimationFrame(() => { treeFrame = 0; renderTreeNow(); });
 }
 
+/** Channels with unread messages, newest first (the Starred meta-channel and status are left out: they repeat or add noise). */
+function unreadEntries() {
+  return unreadList(channelUnread, channelLastMsgTs).filter(e => !isMetaChannel(e.name) && channels.has(e.name) && !isIgnored(e.name));
+}
+
+function updateTabTitle() {
+  document.title = tabTitle(unreadEntries().reduce((n, e) => n + e.count, 0) + (channelUnread.get(EMERGENCY_CHANNEL) || 0), 'Radio IRC');
+}
+
+/** Jump to the next (dir 1) or previous (dir -1) channel with unread messages. */
+function jumpUnread(dir) {
+  const next = stepUnread(unreadEntries().map(e => e.name), activeChannel, dir);
+  if (next) switchChannel(next);
+}
+
 function renderTreeNow() {
+  updateTabTitle();
+  updateIgnoreBar();
   // Group channels by group field
   const groups = new Map();
   for (const [name, ch] of channels) {
-    if (name === STATUS_CHANNEL || name === STARRED_CHANNEL) continue;
+    if (isMetaChannel(name) || isIgnored(name)) continue;
     const g = ch.group || 'Ungrouped';
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g).push(name);
@@ -2470,7 +4002,7 @@ function renderTreeNow() {
   if (treeSearchQuery) {
     const matches = [];
     for (const [name, ch] of channels) {
-      if (name === STATUS_CHANNEL) continue;
+      if (name === STATUS_CHANNEL || isIgnored(name)) continue;
       const searchable = (name + ' ' + (ch.alpha_tag || '') + ' ' + (ch.group || '')).toLowerCase();
       if (searchable.includes(treeSearchQuery)) matches.push(name);
     }
@@ -2505,24 +4037,67 @@ function renderTreeNow() {
   sysSection.appendChild(statusItem);
   treeScroll.appendChild(sysSection);
 
+  // Unread: only the channels with unread messages, newest first
+  const unreadNow = unreadEntries();
+  if (unreadNow.length > 0) {
+    const total = unreadNow.reduce((n, e) => n + e.count, 0);
+    const unSection = document.createElement('div');
+    unSection.className = 'tree-section unread-section';
+    const unLabel = document.createElement('div');
+    unLabel.className = 'tree-section-label unread-label' + (unreadCollapsed ? ' collapsed' : '');
+    const unText = document.createElement('span');
+    unText.textContent = `Unread \u00b7 ${total > 99 ? '99+' : total} in ${unreadNow.length}`;
+    unText.title = 'Click to fold or unfold. Alt+Down / Alt+Up: next / previous unread channel';
+    const unRead = document.createElement('button');
+    unRead.className = 'read-all-btn';
+    unRead.textContent = 'Read All';
+    unRead.addEventListener('click', (e) => { e.stopPropagation(); markAllRead(); });
+    unLabel.addEventListener('click', () => {
+      unreadCollapsed = !unreadCollapsed;
+      try { localStorage.setItem('irc_unread_collapsed', unreadCollapsed ? '1' : '0'); } catch { /* storage blocked */ }
+      renderTree();
+    });
+    unLabel.appendChild(unText);
+    unLabel.appendChild(unRead);
+    unSection.appendChild(unLabel);
+    if (!unreadCollapsed) for (const e of unreadNow) unSection.appendChild(createChannelItem(e.name));
+    treeScroll.appendChild(unSection);
+  }
+
+  // Emergency: appears once an emergency call has been seen
+  if (channels.has(EMERGENCY_CHANNEL)) {
+    const emSection = document.createElement('div');
+    emSection.className = 'tree-section';
+    emSection.appendChild(createChannelItem(EMERGENCY_CHANNEL));
+    treeScroll.appendChild(emSection);
+  }
+
   // Favorites section (with starred meta-channel at top)
-  const favChans = [...channels.keys()].filter(ch => ch !== STATUS_CHANNEL && ch !== STARRED_CHANNEL && isFavorite(ch));
+  const favChans = [...channels.keys()].filter(ch => ch !== STATUS_CHANNEL && ch !== STARRED_CHANNEL && isFavorite(ch) && !isIgnored(ch));
   if (favChans.length > 0 || channels.has(STARRED_CHANNEL)) {
     const favSection = document.createElement('div');
     favSection.className = 'tree-section';
     const favLabel = document.createElement('div');
-    favLabel.className = 'tree-section-label fav-label';
+    favLabel.className = 'tree-section-label fav-label' + (favCollapsed ? ' collapsed' : '');
     favLabel.textContent = '\u2605 Favorites';
+    favLabel.title = 'Click to fold or unfold';
+    favLabel.addEventListener('click', () => {
+      favCollapsed = !favCollapsed;
+      try { localStorage.setItem('irc_fav_collapsed', favCollapsed ? '1' : '0'); } catch { /* storage blocked */ }
+      renderTree();
+    });
     favSection.appendChild(favLabel);
 
-    // Starred meta-channel always first
-    if (channels.has(STARRED_CHANNEL)) {
-      favSection.appendChild(createChannelItem(STARRED_CHANNEL));
-    }
+    if (!favCollapsed) {
+      // Starred meta-channel always first
+      if (channels.has(STARRED_CHANNEL)) {
+        favSection.appendChild(createChannelItem(STARRED_CHANNEL));
+      }
 
-    favChans.sort();
-    for (const ch of favChans) {
-      favSection.appendChild(createChannelItem(ch));
+      favChans.sort();
+      for (const ch of favChans) {
+        favSection.appendChild(createChannelItem(ch));
+      }
     }
     treeScroll.appendChild(favSection);
   }
@@ -2533,100 +4108,78 @@ function renderTreeNow() {
   for (const [groupName, chans] of sortedGroups) {
     const section = document.createElement('div');
     section.className = 'tree-section';
-
-    // Sort channels within group
     chans.sort();
 
-    // Split into active and inactive channels
-    const activeChans = chans.filter(ch => isChannelActive(ch));
-    const inactiveChans = chans.filter(ch => !isChannelActive(ch));
-
-    const isExpanded = groupCollapsed.get(groupName) === true; // explicitly expanded
-    const allInactive = activeChans.length === 0;
-
-    // Compute group-level unread total
+    // Open or closed is the only thing that decides what shows; activity only highlights.
+    const open = groupOpen.has(groupName) ? groupOpen.get(groupName) : chans.includes(activeChannel);
     const groupUnread = chans.reduce((sum, ch) => sum + (channelUnread.get(ch) || 0), 0);
     const unreadBadge = groupUnread > 0
       ? `<span class="group-unread">${groupUnread > 99 ? '99+' : groupUnread}</span>` : '';
 
     const label = document.createElement('div');
-    label.className = 'tree-section-label';
+    label.className = 'tree-section-label' + (open ? '' : ' collapsed');
+    label.innerHTML = groupLabelHtml(groupName) + `<span class="group-count">${chans.length}</span>` + unreadBadge;
+    label.addEventListener('click', () => {
+      groupOpen.set(groupName, !open);
+      saveGroupState();
+      renderTree();
+    });
+    section.appendChild(label);
 
-    if (allInactive && !isExpanded) {
-      if (chans.length <= 3) {
-        // Small inactive group — show all channels directly
-        label.innerHTML = groupLabelHtml(groupName) + unreadBadge;
-        label.addEventListener('click', () => {
-          groupCollapsed.set(groupName, false);
-          renderTree();
-        });
-        section.appendChild(label);
-        for (const ch of chans) {
-          section.appendChild(createChannelItem(ch));
-        }
-      } else {
-        // Large inactive group — collapse with "N more..."
-        label.classList.add('collapsed');
-        label.innerHTML = groupLabelHtml(groupName) + unreadBadge;
-        label.addEventListener('click', () => {
-          groupCollapsed.set(groupName, true);
-          renderTree();
-        });
-        section.appendChild(label);
-
-        const more = document.createElement('div');
-        more.className = 'tree-more';
-        more.textContent = `${chans.length} more...`;
-        more.addEventListener('click', (e) => {
-          e.stopPropagation();
-          groupCollapsed.set(groupName, true);
-          renderTree();
-        });
-        section.appendChild(more);
-      }
-    } else if (isExpanded) {
-      // Fully expanded — show all channels
-      label.innerHTML = groupLabelHtml(groupName) + unreadBadge;
-      label.addEventListener('click', () => {
-        groupCollapsed.set(groupName, false);
-        renderTree();
-      });
-      section.appendChild(label);
-
-      for (const ch of chans) {
-        section.appendChild(createChannelItem(ch));
-      }
-    } else {
-      // Mixed: show active channels + "N more..." expander for inactive
-      label.innerHTML = groupLabelHtml(groupName) + unreadBadge;
-      label.addEventListener('click', () => {
-        groupCollapsed.set(groupName, true);
-        renderTree();
-      });
-      section.appendChild(label);
-
-      for (const ch of activeChans) {
-        section.appendChild(createChannelItem(ch));
-      }
-
-      if (inactiveChans.length > 0 && inactiveChans.length <= 3) {
-        for (const ch of inactiveChans) {
-          section.appendChild(createChannelItem(ch));
-        }
-      } else if (inactiveChans.length > 3) {
-        const more = document.createElement('div');
-        more.className = 'tree-more';
-        more.textContent = `${inactiveChans.length} more...`;
-        more.addEventListener('click', (e) => {
-          e.stopPropagation();
-          groupCollapsed.set(groupName, true);
-          renderTree();
-        });
-        section.appendChild(more);
-      }
-    }
+    if (open) for (const ch of chans) section.appendChild(createChannelItem(ch));
 
     treeScroll.appendChild(section);
+  }
+
+  // Ignored: folded by default, so one can be brought back
+  const ignoredNow = [...channels.keys()].filter(ch => !isMetaChannel(ch) && isIgnored(ch)).sort();
+  if (ignoredNow.length > 0) {
+    const igSection = document.createElement('div');
+    igSection.className = 'tree-section';
+    const igLabel = document.createElement('div');
+    igLabel.className = 'tree-section-label' + (ignoredOpen ? '' : ' collapsed');
+    igLabel.textContent = `Ignored (${ignoredNow.length})`;
+    igLabel.addEventListener('click', () => {
+      ignoredOpen = !ignoredOpen;
+      try { localStorage.setItem('irc_ignored_open', ignoredOpen ? '1' : '0'); } catch { /* storage blocked */ }
+      renderTree();
+    });
+    igSection.appendChild(igLabel);
+    if (ignoredOpen) {
+      for (const ch of ignoredNow) {
+        const row = document.createElement('div');
+        row.className = 'ignored-row';
+        const name = document.createElement('span');
+        name.className = 'ign-name';
+        name.textContent = ch;
+        name.style.cursor = 'pointer';
+        name.title = 'Open it (read only: nothing new is added while ignored)';
+        name.addEventListener('click', () => switchChannel(ch));
+        row.appendChild(name);
+        if (isIgnoredLocal(ch)) {
+          const b = document.createElement('button');
+          b.textContent = 'show';
+          b.title = 'Stop ignoring here';
+          b.addEventListener('click', () => toggleIgnoreLocal(ch));
+          row.appendChild(b);
+        }
+        if (isIgnoredRecorder(ch)) {
+          const kind = document.createElement('span');
+          kind.className = 'ign-kind';
+          kind.textContent = 'recorder';
+          row.appendChild(kind);
+          if (syncOn()) {
+            const b = document.createElement('button');
+            b.textContent = 'record';
+            b.title = 'Tell the recorder to record this talkgroup again';
+            b.addEventListener('click', () => setIgnoreRecorder(ch, false));
+            row.appendChild(b);
+          }
+        }
+        igSection.appendChild(row);
+      }
+    }
+    treeScroll.appendChild(igSection);
   }
 }
 
@@ -2763,45 +4316,129 @@ function cancelChannelEdit() {
   if (state && state.tgid) chanEditBtn.style.display = 'inline-block';
 }
 
-function saveChannelTag(newTag) {
+// The description (the topic line) is the recorder's: it is written to the talkgroup file and comes back
+// as the recorder's edit, so it needs control access and Sync on.
+
+function startDescEdit() {
   const state = channels.get(activeChannel);
+  if (!state || !state.tgid || !syncOn() || descEditActive) return;
+  descEditActive = true;
+  const topicEl = document.getElementById('chan-topic');
+  const row = document.createElement('span');
+  row.className = 'chan-edit-row';
+  row.id = 'chan-desc-row';
+  row.style.flex = '1';
+  const input = document.createElement('input');
+  input.className = 'chan-edit-input';
+  input.style.flex = '1';
+  input.value = state.description || '';
+  input.placeholder = 'Description';
+  input.spellcheck = false;
+  const save = document.createElement('button');
+  save.className = 'chan-edit-save'; save.textContent = 'Save';
+  save.onclick = () => saveDescription(input.value.trim());
+  const cancel = document.createElement('button');
+  cancel.className = 'chan-edit-cancel'; cancel.textContent = 'Cancel';
+  cancel.onclick = cancelDescEdit;
+  input.onkeydown = (e) => { if (e.key === 'Enter') save.click(); if (e.key === 'Escape') cancelDescEdit(); };
+  row.append(input, save, cancel);
+  topicEl.style.display = 'none';
+  topicEl.parentNode.insertBefore(row, topicEl.nextSibling);
+  updateIgnoreBar();
+  input.focus();
+  input.select();
+}
+
+function cancelDescEdit() {
+  descEditActive = false;
+  const row = document.getElementById('chan-desc-row');
+  if (row) row.remove();
+  document.getElementById('chan-topic').style.display = '';
+  updateIgnoreBar();
+}
+
+function saveDescription(text, chanName = activeChannel) {
+  const state = channels.get(chanName);
+  cancelDescEdit();
+  if (!state || !state.tgid || text === (state.description || '')) return;
+  if (!rec.connected) { syncNotice('Offline: the description was not changed'); return; }
+  const key = tgKey(state.system_id, state.tgid);
+  descPending.add(key);
+  writeTalkgroup(state.system_id, state.tgid, { description: text }).then((r) => {
+    if (r.error && descPending.delete(key)) syncNotice(`The description was not changed: ${r.error}`);
+  });
+}
+
+document.getElementById('chan-desc-btn').addEventListener('click', startDescEdit);
+
+/** Give a talkgroup's channel the name `newTag` (the recorder's, or one typed here): renames the channel and refreshes the display. */
+function applyChannelName(state, newTag) {
+  const key = tgKey(state.system_id, state.tgid);
+  const oldChanName = tgidToChannel.get(key);
+  if (!oldChanName) return;
+  state.alpha_tag = newTag || String(state.tgid);
+
+  const newChanName = toChannelName(state.alpha_tag);
+  let finalName = newChanName;
+  if (channels.has(finalName) && channels.get(finalName) !== state) {
+    finalName = disambiguatedName(newChanName, state.system_id, state.tgid);
+  }
+  if (finalName !== oldChanName) renameChannel(oldChanName, finalName);
+
+  if (activeChannel === finalName) {
+    chanNameEl.textContent = finalName;
+    titlebarChan.textContent = state.tgid ? `${finalName} (TG ${state.tgid})` : finalName;
+  }
+  renderTree();
+}
+
+function saveChannelTag(newTag, chanName = activeChannel) {
+  const state = channels.get(chanName);
   if (!state || !state.tgid || !newTag) return;
 
-  // Kept in this browser (listen access can't change the recorder's talkgroup file);
-  // the recorder's own name again drops the rename.
-  const renameKey = tgKey(state.system_id, state.tgid);
-  if (newTag === (tgMeta(state.system_id, state.tgid).alphaTag || '')) delete nameOverrides.tg[renameKey];
-  else nameOverrides.tg[renameKey] = newTag;
-  Promise.resolve()
-    .then(() => {
-      saveNameOverrides();
-      const oldChanName = activeChannel;
-      const key = tgKey(state.system_id, state.tgid);
+  const key = tgKey(state.system_id, state.tgid);
+  const pendKey = `tg:${key}`;
+  const recorderName = tgMeta(state.system_id, state.tgid).alphaTag || '';
 
-      // Update state
-      state.alpha_tag = newTag;
+  // Kept here first (so a failed write isn't lost); the recorder's own name again drops it.
+  if (newTag === recorderName) delete nameOverrides.tg[key];
+  else nameOverrides.tg[key] = newTag;
+  try { saveNameOverrides(); } catch (err) { console.error('Failed to save the rename:', err); }
+  applyChannelName(state, newTag);
+  cancelChannelEdit();
 
-      // Rebuild channel mapping
-      const newChanName = toChannelName(newTag);
-      let finalName = newChanName;
-      if (channels.has(finalName) && channels.get(finalName) !== state) {
-        finalName = disambiguatedName(newChanName, state.system_id, state.tgid);
-      }
+  if (!syncOn()) return;                       // listen access, or Sync off: stays in this browser
+  if (newTag === recorderName) { pendingRenames.delete(pendKey); return; }
+  if (!rec.connected) {
+    pendingRenames.add(pendKey);
+    syncNotice(`Offline: ${newTag} is kept here until the recorder is back (/sync push)`);
+    return;
+  }
+  pendingRenames.add(pendKey);
+  writeTalkgroup(state.system_id, state.tgid, { alphaTag: newTag }).then((r) => {
+    if (r.error && pendingRenames.has(pendKey)) syncNotice(`Could not save ${newTag} on the recorder (${r.error}); it is kept here (/sync status)`);
+  });
+}
 
-      if (finalName !== oldChanName) {
-        renameChannel(oldChanName, finalName);
-      }
-
-      // Cancel edit UI and refresh display
-      cancelChannelEdit();
-      chanNameEl.textContent = finalName;
-      titlebarChan.textContent = state.tgid ? `${finalName} (TG ${state.tgid})` : finalName;
-      renderTree();
-    })
-    .catch(err => {
-      console.error('Failed to save talkgroup tag:', err);
-      cancelChannelEdit();
-    });
+/** The recorder changed a talkgroup's cells (ours, or someone else's): its name wins over one kept here. */
+function handleTalkgroupEdited(m) {
+  const edit = m.edit || {};
+  if (edit.alphaTag !== undefined) {
+    const key = tgKey(m.system, m.talkgroup);
+    const mine = nameOverrides.tg[key];
+    delete nameOverrides.tg[key];
+    try { saveNameOverrides(); } catch { /* storage blocked */ }
+    const wasPending = pendingRenames.delete(`tg:${key}`);
+    const chanName = tgidToChannel.get(key);
+    if (chanName && channels.has(chanName)) applyChannelName(channels.get(chanName), edit.alphaTag);
+    if (wasPending) syncNotice(edit.alphaTag === mine ? `Saved ${mine} on the recorder` : `The recorder's name for ${key} is ${edit.alphaTag || '(none)'}`);
+  }
+  if (edit.description !== undefined && descPending.delete(tgKey(m.system, m.talkgroup))) {
+    syncNotice(`Saved the description on the recorder: ${edit.description || '(none)'}`);
+  }
+  refreshTalkgroups(m.system);
+  updateIgnoreBar();
+  refreshTgModalFor(tgKey(m.system, m.talkgroup));
 }
 
 chanEditBtn.addEventListener('click', startChannelEdit);
@@ -2817,9 +4454,10 @@ function switchChannel(ch) {
 
   // Cancel any in-progress edit
   if (channelEditActive) cancelChannelEdit();
+  if (descEditActive) cancelDescEdit();
 
   activeChannel = ch;
-  channelUnread.set(ch, 0);
+  markChannelRead(ch);
 
   const state = channels.get(ch);
   const displayName = ch;
@@ -3261,8 +4899,8 @@ function queryCalls(q) { return askRecorder(Object.assign({ type: 'callsQuery' }
 function queryRadio(q) { return askRecorder(Object.assign({ type: 'radioQuery' }, q)); }
 
 /** GET from the transcribe plugin. */
-async function fetchTranscribe(path) {
-  const res = await fetch(TRANSCRIBE_BASE + path);
+async function fetchTranscribe(path, signal) {
+  const res = await fetch(TRANSCRIBE_BASE + path, { signal });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} from ${TRANSCRIBE_BASE}${path}`);
   return res.json();
 }
@@ -3401,7 +5039,7 @@ function bootstrapChannels() {
   renderTree();
 
   // Auto-switch to first real channel
-  const firstChan = [...channels.keys()].find(k => k !== STATUS_CHANNEL && k !== STARRED_CHANNEL);
+  const firstChan = [...channels.keys()].find(k => !isMetaChannel(k));
   if (firstChan) switchChannel(firstChan);
 }
 
@@ -3506,10 +5144,27 @@ function bootstrapRecentCalls() {
   // Set unread badges and activity flags for channels with backfill
   for (const [chanName, count] of backfillCounts) {
     channelHasActivity.add(chanName);
-    // Don't set unread for the currently active channel
-    if (chanName !== activeChannel) {
+    // Don't set unread for the currently active channel, or for one that's ignored (nothing counts there)
+    if (chanName !== activeChannel && !isIgnored(chanName)) {
       channelUnread.set(chanName, count);
+      if (!channelLastMsgTs.has(chanName)) channelLastMsgTs.set(chanName, 0);
     }
+  }
+
+  // Recent emergency calls go in the Emergency channel too (oldest first)
+  const emMsgs = [];
+  for (const [chanName] of callsByChannel) {
+    if (isIgnoredRecorder(chanName)) continue;
+    for (const m of channels.get(chanName)?.messages || []) {
+      if (m.emergency && m.kind !== 'notice' && (m.date?.getTime() || 0) > emergencyClearedAt) emMsgs.push(Object.assign({}, m, { originChannel: chanName, _el: null }));
+    }
+  }
+  if (emMsgs.length) {
+    emMsgs.sort((a, b) => (a.date?.getTime() || 0) - (b.date?.getTime() || 0));
+    const em = ensureEmergencyChannel();
+    em.messages.push(...emMsgs);
+    channelHasActivity.add(EMERGENCY_CHANNEL);
+    if (activeChannel !== EMERGENCY_CHANNEL) { channelUnread.set(EMERGENCY_CHANNEL, emMsgs.length); channelLastMsgTs.set(EMERGENCY_CHANNEL, 0); }
   }
 
   serverMsg(`Loaded ${count} recent calls across ${backfillCounts.size} channels`);
@@ -3576,7 +5231,7 @@ function connectTranscripts() {
 
   es.addEventListener('transcript', (e) => {
     lastEventId = e.lastEventId;
-    try { handleTranscription(JSON.parse(e.data)); } catch (err) { console.warn('bad transcript event:', err); }
+    try { handleTranscription(JSON.parse(e.data)); } catch (err) { console.warn('bad transcript event:', err); if (!badTranscriptWarned) { badTranscriptWarned = true; serverMsg('A transcript event could not be read (the plugin may have changed its format); see the console.'); } }
   });
 }
 
@@ -3594,6 +5249,9 @@ function setConnectionState(state) {
   connectionState = state;
   if (window.ehSetNetworkStatus) window.ehSetNetworkStatus(state);
   const dot = treeStatus.querySelector('.dot');
+
+  const tbDot = document.getElementById('tb-dot');
+  if (tbDot) tbDot.className = 'tb-dot ' + state;
 
   if (state === 'connected') {
     treeStatus.innerHTML = '<span class="dot connected"></span>Connected';
@@ -3627,6 +5285,7 @@ function applyTranscript(t) {
   let applied = false;
   if (chanName && applyTranscriptionToChannel(chanName, t.path, t)) applied = true;
   if (channels.has(STARRED_CHANNEL) && applyTranscriptionToChannel(STARRED_CHANNEL, t.path, t)) applied = true;
+  if (channels.has(EMERGENCY_CHANNEL) && applyTranscriptionToChannel(EMERGENCY_CHANNEL, t.path, t)) applied = true;
   if (applied) {
     pendingTranscriptions.delete(t.path);
     return;
@@ -3642,6 +5301,10 @@ function applyTranscript(t) {
 /** Apply a transcript to a call's messages in one channel. One line per segment, the radio named
  *  (a segment with no radio: the call's last talker, else "unknown"); the text alone when there
  *  are no segments; a skipped or failed one's reason, muted. Returns whether the call was there. */
+/** "A, B +2": the radios heard in a call, for a transcript that can't say who said what. */
+function talkersLabel(sid, units) {
+  return talkersText(talkerParts(units, u => resolveNick(sid, u, '')));
+}
 function applyTranscriptionToChannel(chanName, callId, t) {
   const ch = channels.get(chanName);
   if (!ch) return false;
@@ -3660,18 +5323,25 @@ function applyTranscriptionToChannel(chanName, callId, t) {
   const sid = base.systemId || t.system;
   const talkers = base.talkers || [];
   const lastTalker = talkers.length ? talkers[talkers.length - 1] : null;
+  const distinctTalkers = [...new Set(talkers)];
   const startMs = base.callStart || t.startMs || (base.date ? base.date.getTime() : Date.now());
   const segs = (t.segments || []).filter(s => s && s.text && s.text.trim());
 
   let lines;
   if (segs.length > 0) {
     lines = segs.map(s => {
-      const unit = s.unit != null ? s.unit : lastTalker;
-      const nick = unit != null ? resolveNick(sid, unit, '') : 'unknown';
+      // No radio on the segment (engines without word times give one segment for the whole call): with
+      // several talkers, don't pin the whole conversation on the last one; name them all.
+      const several = s.unit == null && distinctTalkers.length > 1;
+      const unit = s.unit != null ? s.unit : (several ? null : lastTalker);
+      const nick = several ? talkersLabel(sid, distinctTalkers)
+        : (unit != null ? resolveNick(sid, unit, '') : 'unknown');
+      // A label for several radios is no one's nick: kept apart so nick actions and renames don't take it for one.
+      const talkerUnits = several ? distinctTalkers : undefined;
       const date = new Date(startMs + (s.start || 0) * 1000);
       const len = Math.max(0, (s.end || 0) - (s.start || 0));
       return Object.assign({}, base, {
-        ts: ts(date), date, nick, src: unit,
+        ts: ts(date), date, nick, src: unit, talkerUnits, talkerSys: talkerUnits ? sid : undefined,
         pos: s.start || 0, txDuration: len,
         duration: len ? fmtDuration(len) : base.duration,
         text: fmtTranscript(s.text), textMuted: false, _el: null,
@@ -3820,9 +5490,38 @@ function syncCalls() {
   }
   syncedSinceHello = true;
 
-  // Give up on recordings that never came (a call too short to keep, say).
-  const cutoff = Date.now() - 60000;
-  if (awaitingPath.length) awaitingPath = awaitingPath.filter(lc => lc.endedMs > cutoff);
+  // Give up on recordings that never came: a call shorter than the recorder's minimum call is deleted,
+  // not saved, so its placeholder lines (no audio, ever) are taken back out.
+  const cutoff = Date.now() - 20000;
+  if (awaitingPath.length) {
+    const gone = awaitingPath.filter(lc => lc.endedMs <= cutoff);
+    if (gone.length) {
+      awaitingPath = awaitingPath.filter(lc => lc.endedMs > cutoff);
+      for (const lc of gone) dropUnsavedCall(lc);
+    }
+  }
+}
+
+/** Take out the placeholder lines of a live call that was never recorded (no path came for them). */
+function dropUnsavedCall(lc) {
+  let changed = false;
+  for (const name of [lc.chanName, STARRED_CHANNEL, EMERGENCY_CHANNEL]) {
+    const ch = channels.get(name);
+    if (!ch) continue;
+    const readAt = channelReadAt.get(name) || 0;
+    let unread = 0;
+    ch.messages = ch.messages.filter((m) => {
+      if (m.callId !== lc.key || m.path) return true;
+      if (m._el) m._el.remove();
+      if (m._unreadAt && m._unreadAt > readAt) unread++;   // counted unread and not read since
+      return false;
+    });
+    if (unread) {
+      channelUnread.set(name, Math.max(0, (channelUnread.get(name) || 0) - unread));
+      changed = true;
+    }
+  }
+  if (changed) renderTree();
 }
 
 /** A call came on the air: the typing indicator, an emergency notice, an encrypted call's line. */
@@ -3953,21 +5652,26 @@ function upgradeLiveMessages(lc, entry) {
   const call = entryToCall(entry);
   const newMsgs = callsToMessages([call], chanName, call.system_id);
   const old = ch.messages.filter(m => m.callId === lc.key);
-  if (old.length) replaceCallMessages(chanName, old, newMsgs);
-  else for (const m of newMsgs) addMsg(chanName, m);
+  // Emergency holds the placeholder lines even when its channel doesn't (a talkgroup ignored here).
+  const em = channels.get(EMERGENCY_CHANNEL);
+  const oldEm = em ? em.messages.filter(m => m.callId === lc.key) : [];
   const st = channels.get(STARRED_CHANNEL);
-  if (st && old.length) {
-    const oldStarred = st.messages.filter(m => m.callId === lc.key);
-    if (oldStarred.length) {
-      replaceCallMessages(STARRED_CHANNEL, oldStarred, newMsgs.map(m => Object.assign({}, m, { originChannel: chanName, _el: null })));
-    }
+  const oldStarred = st ? st.messages.filter(m => m.callId === lc.key) : [];
+  if (old.length) replaceCallMessages(chanName, old, newMsgs);
+  // Not in its channel (cleared, or ignored here): added there, but where its placeholders were forwarded
+  // they are replaced below, not added again.
+  else for (const m of newMsgs) addMsg(chanName, m, oldEm.length > 0 || oldStarred.length > 0);
+  if (oldStarred.length) {
+    replaceCallMessages(STARRED_CHANNEL, oldStarred, newMsgs.map(m => Object.assign({}, m, { originChannel: chanName, _el: null })));
   }
+  if (oldEm.length) replaceCallMessages(EMERGENCY_CHANNEL, oldEm, newMsgs.map(m => Object.assign({}, m, { originChannel: chanName, _el: null })));
   drainPendingTranscriptions([call.call_id]);
   enqueueRecorded(call, chanName, newMsgs);
 }
 
 /** Scanner: queue a recorded call for auto-play if its channel is scanned. */
 function enqueueRecorded(call, chanName, msgs) {
+  if (isIgnored(chanName)) return;
   if (call.encrypted || !call.audio || msgs.length === 0 || !msgs[0].path) return;
   scannerEnqueue(call.path, msgs[0].nick, chanName, call.emergency);
 }
@@ -4027,6 +5731,11 @@ function handleAffiliation(evt) {
 // ══════════════════════════════════════════════════════════════
 
 document.addEventListener('keydown', (e) => {
+  if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault();
+    jumpUnread(e.key === 'ArrowDown' ? 1 : -1);
+    return;
+  }
   if (e.key === '/' && document.activeElement !== inputField) {
     e.preventDefault();
     inputField.focus();
@@ -4036,11 +5745,20 @@ document.addEventListener('keydown', (e) => {
 
 // Nick tooltip on hover in chat messages (event delegation)
 messagesEl.addEventListener('mouseover', (e) => {
+  const tn = e.target.closest('.tnick');
+  if (tn) { showNickTooltip(tn.dataset.nick, tn); return; }
+  const more = e.target.closest('.tmore');
+  if (more) {
+    const all = talkersOf(more);
+    placeTooltip(`<span class="tt-nick">All ${all.length} radios in this call</span>` +
+      all.map(p => `<br>${esc(p.name)}`).join(''), more);
+    return;
+  }
   const nickEl = e.target.closest('.nick[data-nick]');
   if (nickEl && nickEl.dataset.nick) showNickTooltip(nickEl.dataset.nick, nickEl);
 });
 messagesEl.addEventListener('mouseout', (e) => {
-  const nickEl = e.target.closest('.nick[data-nick]');
+  const nickEl = e.target.closest('.nick[data-nick], .tnick, .tmore');
   if (nickEl) hideNickTooltip();
 });
 
@@ -4234,12 +5952,27 @@ function handleCommand(cmd) {
       break;
     }
 
+    case '/ignore':
+    case '/unignore': {
+      const off = c === '/unignore';
+      const rec2 = parts[1] === 'recorder' || parts[1] === 'rec';
+      if (!channelKey(activeChannel)) { addMsg(activeChannel, { ts: ts(), kind: 'notice', text: 'Join a talkgroup channel first' }); break; }
+      if (rec2) setIgnoreRecorder(activeChannel, !off);
+      else if (isIgnoredLocal(activeChannel) !== !off) toggleIgnoreLocal(activeChannel);
+      break;
+    }
+
+    case '/sync':
+      syncCommand(parts[1], parts[2]);
+      break;
+
     case '/readall':
       markAllRead();
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: 'All channels marked as read' });
       break;
 
     case '/clear':
+      if (activeChannel === EMERGENCY_CHANNEL) { clearEmergency(); break; }
       if (channels.has(activeChannel)) {
         channels.get(activeChannel).messages = [];
         messagesEl.innerHTML = '';
@@ -4260,11 +5993,11 @@ function handleCommand(cmd) {
         TRANSCRIBE_BASE = TRANSCRIBE_DEFAULT;
         connectTranscripts();
       } else if (arg) {
-        if (!/^https?:\/\//.test(arg)) {
+        if (!cleanHttpBase(arg)) {
           addMsg(activeChannel, { ts: ts(), kind: 'notice', text: 'Usage: /api http://host:port — the transcribe plugin\'s address; /api reset — the default' });
           break;
         }
-        TRANSCRIBE_BASE = arg.replace(/\/+$/, '');
+        TRANSCRIBE_BASE = cleanHttpBase(arg);
         localStorage.setItem('irc_transcribe', TRANSCRIBE_BASE);
         connectTranscripts();
       }
@@ -4328,9 +6061,11 @@ function handleCommand(cmd) {
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /listen off         — Stop live listening' });
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /volume N           — Live volume, 0-100' });
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /ops [patterns]     — View/set op nick patterns (comma-sep regex)' });
+      addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /ignore [recorder]  — Hide this talkgroup here (or tell the recorder to ignore it); /unignore undoes' });
+      addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /sync [on|off|status|push|pull] — Name sync with the recorder (needs control access)' });
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /readall            — Mark all channels as read' });
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /reconnect          — Reconnect the transcript stream' });
-      addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /clear              — Clear scrollback' });
+      addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /clear              — Clear scrollback (in Emergency: dismiss the channel)' });
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /api [url|reset]    — Show or set the transcribe plugin\'s address' });
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '  /nerd               — Toggle hipster nerd cool mode (small text, low contrast)' });
       addMsg(activeChannel, { ts: ts(), kind: 'notice', text: '— End of /help —' });
@@ -4652,13 +6387,13 @@ audioEl.addEventListener('loadedmetadata', () => {
 // ══════════════════════════════════════════════════════════════
 
 function markAllRead() {
-  for (const key of channelUnread.keys()) {
-    channelUnread.set(key, 0);
-  }
+  for (const key of channelUnread.keys()) markChannelRead(key);
   renderTree();
 }
 
 document.getElementById('read-all-btn').addEventListener('click', markAllRead);
+document.getElementById('sync-btn').addEventListener('click', () => syncCommand(syncPref() ? 'off' : 'on'));
+updateSyncUI();
 
 // ── Nerd mode: restore from localStorage ──
 if (localStorage.getItem('nerd_mode') === '1') {
@@ -4720,6 +6455,106 @@ function closeDrawers() {
 hamburgerBtn.addEventListener('click', () => openDrawer('channels'));
 usersBtn.addEventListener('click', () => openDrawer('users'));
 drawerBackdrop.addEventListener('click', closeDrawers);
+
+// ── Phone: bottom sheets ──
+// The channel sheet (tap the channel name) and the ⋯ sheet. Each button presses the desktop control
+// it stands for, so starring, ignoring and renaming have one implementation.
+const sheetBackdrop = document.getElementById('sheet-backdrop');
+const chanSheet = document.getElementById('chan-sheet');
+const menuSheet = document.getElementById('menu-sheet');
+
+function closeSheets() {
+  chanSheet.classList.remove('open');
+  menuSheet.classList.remove('open');
+  sheetBackdrop.classList.remove('visible');
+}
+function openSheet(sheet) {
+  closeDrawers();
+  closeSheets();
+  sheet.classList.add('open');
+  sheetBackdrop.classList.add('visible');
+}
+/** A sheet button standing for a desktop button: its label and lit state, and a press passed on. */
+function proxyButton(src, label) {
+  const b = document.createElement('button');
+  b.textContent = label || src.textContent.trim();
+  if (src.classList.contains('on') || src.classList.contains('active')) b.classList.add('on');
+  b.addEventListener('click', () => { closeSheets(); src.click(); });
+  return b;
+}
+function sheetButton(label, fn, on) {
+  const b = document.createElement('button');
+  b.textContent = label;
+  if (on) b.classList.add('on');
+  b.addEventListener('click', () => { closeSheets(); fn(); });
+  return b;
+}
+const shownInline = (el) => el && el.style.display !== 'none';
+
+function openChanSheet() {
+  const ch = activeChannel, st = channels.get(ch);
+  if (!st) return;
+  updateIgnoreBar();
+  document.getElementById('chan-sheet-title').textContent = st.tgid ? `${ch} · TG ${st.tgid}` : ch;
+  const box = document.getElementById('chan-sheet-actions');
+  box.textContent = '';
+  if (st.tgid) box.append(sheetButton('✎ Rename', startChannelEdit));
+  const desc = document.getElementById('chan-desc-btn');
+  if (shownInline(desc)) box.append(sheetButton('✎ Edit description', startDescEdit));
+  if (channelKey(ch)) {
+    box.append(proxyButton(document.getElementById('chan-star')));
+    box.append(sheetButton(isScanned(ch) ? '📡 In the scanner (remove)' : '📡 Add to scanner', () => toggleScan(ch), isScanned(ch)));
+    box.append(proxyButton(document.getElementById('chan-ign-local')));
+    const recBtn = document.getElementById('chan-ign-rec');
+    if (shownInline(recBtn)) box.append(proxyButton(recBtn));
+  }
+  const em = document.getElementById('chan-em-clear');
+  if (shownInline(em)) box.append(proxyButton(em));
+  if (!box.children.length) return; // *status and the like: nothing to do
+  openSheet(chanSheet);
+}
+
+function openMenuSheet() {
+  const box = document.getElementById('menu-sheet-actions');
+  box.textContent = '';
+  box.append(proxyButton(document.getElementById('sync-btn')));
+  box.append(sheetButton('\u2699 Options', openOptions));
+  box.append(sheetButton('🔍 Search transcripts', () => { openDrawer('channels'); gsInput.focus(); }));
+  box.append(proxyButton(document.getElementById('scanner-btn'), scannerEnabled ? 'Scanner mode: on' : 'Scanner mode: off'));
+  const themes = document.getElementById('sheet-themes');
+  themes.textContent = '';
+  const eng = window.ThemeEngine;
+  if (eng) for (const key of eng.list()) {
+    const t = eng.config[key] || {};
+    const b = document.createElement('button');
+    b.className = 'sheet-theme' + (eng.current() === key ? ' active' : '');
+    const sw = document.createElement('i');
+    sw.style.background = (t.switcher && t.switcher.bg) || 'transparent';
+    b.append(sw, document.createTextNode(t.name || key));
+    b.addEventListener('click', () => { eng.apply(key); openMenuSheet(); });
+    themes.append(b);
+  }
+  openSheet(menuSheet);
+}
+
+/** Listen mode and volume: in the title bar on a desktop, in the ⋯ sheet on a phone. The same elements, moved. */
+function placeListenControls() {
+  const mode = document.getElementById('listen-mode'), vol = document.getElementById('listen-vol');
+  if (isMobileLayout()) {
+    document.getElementById('sheet-listen-row').append(mode);
+    document.getElementById('sheet-vol-row').append(vol);
+  } else {
+    document.getElementById('listen-ctl').append(mode, vol);
+    closeSheets();
+  }
+}
+window.matchMedia('(max-width: 768px)').addEventListener('change', placeListenControls);
+placeListenControls();
+
+titlebarChan.addEventListener('click', () => { if (isMobileLayout()) openChanSheet(); });
+document.getElementById('mobile-menu-btn').addEventListener('click', openMenuSheet);
+sheetBackdrop.addEventListener('click', closeSheets);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheets(); });
 
 // Swipe gestures for mobile drawers
 let touchStartX = 0;
@@ -4796,6 +6631,8 @@ rec.on('connection', (up) => {
 
 rec.on('hello', (m) => {
   syncedSinceHello = false;
+  hasControl = Boolean(m.configPath);
+  updateSyncUI();
   statusServer.textContent = `trunk-pro ${m.version || ''}`.trim();
   if (!bootstrapped) {
     serverMsg(`Connected to Trunk Recorder Pro ${m.version || ''}`.trim());
@@ -4803,6 +6640,7 @@ rec.on('hello', (m) => {
     bootstrapChannels();
     bootstrapRecentCalls();
     bootstrapped = true;
+    seedRecNameSeen();
     bootstrapUnits();
     connectTranscripts();
   } else {
@@ -4853,7 +6691,7 @@ function panFor(tgid) {
 }
 
 function channelKey(chanName) {
-  if (chanName === STATUS_CHANNEL || chanName === STARRED_CHANNEL) return null;
+  if (isMetaChannel(chanName)) return null;
   const ch = channels.get(chanName);
   return ch && ch.tgid ? `${ch.system_id}:${ch.tgid}` : null;
 }
@@ -4872,6 +6710,7 @@ function computeWanted() {
   if (own) s.add(own);
   if (listenMode === 'starred') for (const k of favorites) s.add(k);
   if (listenMode === 'scan') for (const k of scanChannels) s.add(k);
+  for (const k of ignoredLocal) s.delete(k);   // heard nowhere here
   return s;
 }
 
@@ -5066,9 +6905,11 @@ rec.on('monitorEvent', (m) => { if (bootstrapped && m.kind === 'unitAffiliated')
 rec.on('callsResult', answerQuery);
 rec.on('radioResult', answerQuery);
 rec.on('stats', showDecodeRate);
-rec.on('config', () => { if (bootstrapped) loadSystemNames(); });
+rec.on('config', onConfigChanged);
+rec.on('unitNames', onConfigChanged);       // radio names arrive as rows, not in the config
+rec.on('unitNameEdited', onConfigChanged);
 rec.on('talkgroups', (m) => refreshTalkgroups(m.system));
-rec.on('talkgroupEdited', (m) => refreshTalkgroups(m.system));
+rec.on('talkgroupEdited', handleTalkgroupEdited);
 rec.on('error', (m) => serverMsg(`Recorder: ${m.message}`));
 
 init();
