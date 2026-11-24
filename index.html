@@ -1980,11 +1980,33 @@ function toggleFavorite(chanName) {
 }
 
 // ── Per-channel name colors (localStorage only, like renames/ignore-here) ──
-// IBM Carbon categorical palette, in its own order (picked by the user): neighbours are easy to tell apart.
-const CHAN_COLOR_PRESETS = [
+// IBM Carbon categorical palette, two sets in the same order: the 70/60-weight colors read on light themes,
+// the 40/30-weight ones on dark themes. A saved swatch is stored as its hex; the page shows the same slot of
+// whichever set matches the current theme, so a choice follows a light/dark theme switch.
+const CHAN_PALETTE_LIGHT = [
   '#6929c4', '#1192e8', '#005d5d', '#9f1853', '#fa4d56', '#570408', '#198038',
   '#002d9c', '#ee538b', '#b28600', '#009d9a', '#012749', '#8a3800', '#a56eff',
 ];
+const CHAN_PALETTE_DARK = [
+  '#8a3ffc', '#33b1ff', '#007d79', '#ff7eb6', '#fa4d56', '#fff1f1', '#6fdc8c',
+  '#4589ff', '#d12771', '#d2a106', '#08bdba', '#bae6ff', '#ba4e00', '#d4bbff',
+];
+/** True when the current theme's --bg is dark (themes always set it as a plain color). */
+function isDarkTheme() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  let r, g, b;
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v);
+  if (hex) {
+    const h = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1];
+    [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  } else {
+    const m = /rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i.exec(v);
+    if (!m) return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    [r, g, b] = [m[1], m[2], m[3]].map(Number);
+  }
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+}
+function chanPalette() { return isDarkTheme() ? CHAN_PALETTE_DARK : CHAN_PALETTE_LIGHT; }
 let chanColors = (() => {
   try { const o = JSON.parse(localStorage.getItem('irc_chan_colors') || '{}'); return (o && typeof o === 'object') ? o : {}; }
   catch { return {}; }
@@ -1996,7 +2018,10 @@ function chanColorKey(chanName) {
 function explicitChanColor(chanName) {
   const k = chanColorKey(chanName);
   const c = k && chanColors[k];
-  return (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : null;
+  if (typeof c !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(c)) return null;
+  const lc = c.toLowerCase();
+  const slot = CHAN_PALETTE_LIGHT.indexOf(lc) >= 0 ? CHAN_PALETTE_LIGHT.indexOf(lc) : CHAN_PALETTE_DARK.indexOf(lc);
+  return slot >= 0 ? chanPalette()[slot] : c;
 }
 /** Fire talkgroups red, law (PD) blue, from the talkgroup file's Tag (fallback: FD / PD in the name). */
 function autoChanColor(chanName) {
@@ -2023,7 +2048,7 @@ function buildChanColorControls(chanName, onDone) {
   const eff = getChanColor(chanName);
   const grid = document.createElement('div');
   grid.className = 'sw-grid';
-  for (const c of CHAN_COLOR_PRESETS) {
+  for (const c of chanPalette()) {
     const b = document.createElement('button');
     b.className = 'sw' + (c === eff ? ' on' : '');
     b.style.background = c;
@@ -2048,6 +2073,12 @@ function buildChanColorControls(chanName, onDone) {
   wrap.appendChild(row);
   return wrap;
 }
+// A light/dark theme switch changes which palette a swatch shows: redraw the tree, the popup and the open modal.
+window.addEventListener('themechange', () => {
+  closeChanColorPop();
+  renderTree();
+  if (tgModalChan && channels.has(tgModalChan)) openTgModal(tgModalChan);
+});
 function closeChanColorPop() {
   const p = document.getElementById('chan-color-pop');
   if (p) p.remove();
