@@ -402,10 +402,10 @@ body::after {
 .tg-color-ctl button.reset:disabled { opacity: .4; cursor: default; }
 .chan-color-pop {
   position: fixed; z-index: 1000; background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: 6px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.4); width: 132px;
+  border-radius: 6px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.4); width: 220px;
 }
-.tg-color-ctl { padding: 4px 16px 8px; max-width: 200px; }
-.tg-color-ctl .sw-grid, .chan-color-pop .sw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.tg-color-ctl { padding: 4px 20px 8px; max-width: 260px; }
+.tg-color-ctl .sw-grid, .chan-color-pop .sw-grid { display: grid; grid-template-columns: repeat(7, 24px); gap: 6px; margin-bottom: 8px; }
 .tg-color-ctl .sw, .chan-color-pop .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .chan-color-pop .sw:hover, .chan-color-pop .sw.on { border-color: var(--text); }
 .tg-color-ctl .row, .chan-color-pop .row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
@@ -876,6 +876,15 @@ body::after {
   font-size: 12px;
 }
 .unit-modal-meta-label { color: var(--text-faint); }
+.tg-field { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tg-field-input {
+  flex: 1; min-width: 0; padding: 2px 6px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 3px; color: var(--text); font-family: inherit; font-size: 12px;
+}
+.tg-field-input:focus { outline: none; border-color: var(--irc-info); }
+.tg-field-input:disabled { background: transparent; border-color: transparent; color: var(--text-muted); padding-left: 0; }
+.tg-field-status { font-size: 11px; min-width: 14px; }
+.tg-edit-note { grid-column: 1 / -1; font-size: 11px; color: var(--text-faint); }
 .unit-modal-meta-value { color: var(--text-muted); font-family: inherit; font-size: 11px; }
 .unit-modal-section {
   border-top: 1px solid var(--border);
@@ -1971,7 +1980,11 @@ function toggleFavorite(chanName) {
 }
 
 // ── Per-channel name colors (localStorage only, like renames/ignore-here) ──
-const CHAN_COLOR_PRESETS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#a855f7', '#ec4899'];
+// IBM Carbon categorical palette, in its own order (picked by the user): neighbours are easy to tell apart.
+const CHAN_COLOR_PRESETS = [
+  '#6929c4', '#1192e8', '#005d5d', '#9f1853', '#fa4d56', '#570408', '#198038',
+  '#002d9c', '#ee538b', '#b28600', '#009d9a', '#012749', '#8a3800', '#a56eff',
+];
 let chanColors = (() => {
   try { const o = JSON.parse(localStorage.getItem('irc_chan_colors') || '{}'); return (o && typeof o === 'object') ? o : {}; }
   catch { return {}; }
@@ -2065,6 +2078,103 @@ function closeTgModal() {
   const m = document.getElementById('tg-modal');
   if (m) m.classList.remove('visible');
 }
+/** One editable cell: Enter or leaving the box saves, Escape puts the old value back. onSave returns an error string, or nothing. */
+function buildTgField(value, canEdit, onSave) {
+  const wrap = document.createElement('span');
+  wrap.className = 'tg-field';
+  const input = document.createElement('input');
+  input.className = 'tg-field-input';
+  input.value = value;
+  input.spellcheck = false;
+  input.disabled = !canEdit;
+  const status = document.createElement('span');
+  status.className = 'tg-field-status';
+  let done = value;
+  const commit = () => {
+    const v = input.value.trim();
+    if (v === done) return;
+    const err = onSave(v);
+    if (err) { status.textContent = err; status.style.color = 'var(--danger)'; return; }
+    done = v;
+    status.textContent = '\u2026'; status.style.color = 'var(--text-muted)';
+  };
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    else if (e.key === 'Escape') { input.value = done; input.blur(); }
+  });
+  input.addEventListener('blur', commit);
+  wrap.append(input, status);
+  return wrap;
+}
+/** The values already used for a talkgroup column ('tag' or 'group') in a system, sorted. */
+function pickList(sys, col) {
+  const seen = new Set();
+  for (const t of rec.talkgroups(sys).values()) { const v = String(t[col] || '').trim(); if (v) seen.add(v); }
+  return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+/** A dropdown of the values already in use, plus "Add new...", which asks for the value and then confirms it. */
+function buildTgSelect(value, list, canEdit, onSave, noun) {
+  const wrap = document.createElement('span');
+  wrap.className = 'tg-field';
+  const sel = document.createElement('select');
+  sel.className = 'tg-field-input';
+  sel.disabled = !canEdit;
+  const status = document.createElement('span');
+  status.className = 'tg-field-status';
+  const NEW = '\u0000new';
+  let done = value;
+  const fill = (extra) => {
+    sel.textContent = '';
+    const vals = list.slice();
+    if (extra && !vals.some((x) => x.toLowerCase() === extra.toLowerCase())) vals.push(extra);
+    if (done && !vals.includes(done)) vals.push(done);
+    vals.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    const none = document.createElement('option'); none.value = ''; none.textContent = '(none)'; sel.appendChild(none);
+    for (const v of vals) { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); }
+    const add = document.createElement('option'); add.value = NEW; add.textContent = '+ Add new\u2026'; sel.appendChild(add);
+    sel.value = done;
+  };
+  fill();
+  sel.addEventListener('change', () => {
+    let v = sel.value;
+    if (v === NEW) {
+      const typed = window.prompt(`New ${noun} for this system:`, '');
+      v = typed == null ? '' : typed.trim();
+      if (!v) { sel.value = done; return; }
+      const same = list.find((x) => x.toLowerCase() === v.toLowerCase());
+      if (same) v = same;
+      else if (!window.confirm(`Add a new ${noun} "${v}"?\n\nIt is written to the recorder's talkgroup file for this talkgroup and then shows up in this list for every talkgroup.`)) { sel.value = done; return; }
+      fill(v);
+      sel.value = v;
+    }
+    if (v === done) return;
+    const err = onSave(v);
+    if (err) { status.textContent = err; status.style.color = 'var(--danger)'; sel.value = done; return; }
+    done = v;
+    status.textContent = '\u2026'; status.style.color = 'var(--text-muted)';
+  });
+  sel.addEventListener('keydown', (e) => e.stopPropagation());
+  wrap.append(sel, status);
+  return wrap;
+}
+/** A recorder-side cell: writes it, and says so in the channel if the recorder refuses. */
+function writeField(key, st, fields, what) {
+  if (!rec.connected) return 'offline';
+  writeTalkgroup(st.system_id, st.tgid, fields).then((r) => {
+    if (r.error) syncNotice(`The ${what} was not changed: ${r.error}`);
+    refreshTgModalFor(key);
+  });
+}
+/** Redraw the open modal when it is for this talkgroup and nothing in it is being typed into. */
+function refreshTgModalFor(key) {
+  if (!tgModalChan) return;
+  const m = document.getElementById('tg-modal');
+  if (m && m.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+  const cur = tgModalChan;
+  const st = channels.get(cur);
+  if (st && tgKey(st.system_id, st.tgid) === key) openTgModal(cur);
+}
 function openTgModal(chanName) {
   const st = channels.get(chanName);
   if (!st || !st.tgid || isMetaChannel(chanName)) return;
@@ -2082,10 +2192,6 @@ function openTgModal(chanName) {
   const lastTs = channelLastMsgTs.get(chanName);
   const rows = [
     ['Talkgroup ID', String(st.tgid)],
-    ['Alpha tag', st.alpha_tag],
-    ['Description', st.description],
-    ['Tag', st.tag],
-    ['Group', st.group],
     ['Mode', rt.mode || ''],
     ['System', systemNames.get(st.system_id) || String(st.system_id)],
     ['Radios heard here', String(st.users ? st.users.size : 0)],
@@ -2125,6 +2231,25 @@ function openTgModal(chanName) {
   box.appendChild(sec);
   const meta = document.createElement('div');
   meta.className = 'unit-modal-meta';
+  // Editable cells. Name is kept here (and sent to the recorder when Sync is on); the rest are the recorder's own
+  // talkgroup-file cells, so they need control access + Sync.
+  const key = tgKey(st.system_id, st.tgid);
+  const live = syncOn();
+  const fields = [
+    ['Name', st.alpha_tag, true, (v) => { if (!v) return 'name can\'t be empty'; saveChannelTag(v, chanName); openTgModal(tgidToChannel.get(key) || chanName); }],
+    ['Description', rt.description ?? st.description, live, (v) => writeField(key, st, { description: v }, 'description')],
+    ['Tag', rt.tag ?? st.tag, live, (v) => writeField(key, st, { tag: v }, 'tag'), pickList(st.system_id, 'tag')],
+    ['Group', rt.group ?? '', live, (v) => writeField(key, st, { category: v }, 'group'), pickList(st.system_id, 'group')],
+  ];
+  for (const [k, v, canEdit, onSave, list] of fields) {
+    const l = document.createElement('span'); l.className = 'unit-modal-meta-label'; l.textContent = k;
+    meta.append(l, list ? buildTgSelect(v || '', list, canEdit, onSave, k.toLowerCase()) : buildTgField(v || '', canEdit, onSave));
+  }
+  if (!live) {
+    const n = document.createElement('div'); n.className = 'tg-edit-note';
+    n.textContent = hasControl ? 'Description, tag and group are the recorder\'s: turn Sync on to edit them.' : 'Description, tag and group are the recorder\'s: this interface has listen access only.';
+    meta.appendChild(n);
+  }
   for (const [k, v] of rows) {
     const l = document.createElement('span'); l.className = 'unit-modal-meta-label'; l.textContent = k;
     const val = document.createElement('span'); val.className = 'unit-modal-meta-value'; val.textContent = v || '\u2014';
@@ -3940,8 +4065,8 @@ function cancelDescEdit() {
   updateIgnoreBar();
 }
 
-function saveDescription(text) {
-  const state = channels.get(activeChannel);
+function saveDescription(text, chanName = activeChannel) {
+  const state = channels.get(chanName);
   cancelDescEdit();
   if (!state || !state.tgid || text === (state.description || '')) return;
   if (!rec.connected) { syncNotice('Offline: the description was not changed'); return; }
@@ -3975,8 +4100,8 @@ function applyChannelName(state, newTag) {
   renderTree();
 }
 
-function saveChannelTag(newTag) {
-  const state = channels.get(activeChannel);
+function saveChannelTag(newTag, chanName = activeChannel) {
+  const state = channels.get(chanName);
   if (!state || !state.tgid || !newTag) return;
 
   const key = tgKey(state.system_id, state.tgid);
@@ -4021,6 +4146,7 @@ function handleTalkgroupEdited(m) {
   }
   refreshTalkgroups(m.system);
   updateIgnoreBar();
+  refreshTgModalFor(tgKey(m.system, m.talkgroup));
 }
 
 chanEditBtn.addEventListener('click', startChannelEdit);
