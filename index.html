@@ -1677,6 +1677,7 @@ const callSrcLists = new Map();
 // Activity tracking for channel tree collapse
 const channelHasActivity = new Set();   // channels with real messages
 const groupOpen = new Map();            // group name -> true (open) / false (closed); unset: open only if it holds the active channel
+let favCollapsed = (() => { try { return localStorage.getItem('irc_fav_collapsed') === '1'; } catch { return false; } })();
 let unreadCollapsed = (() => { try { return localStorage.getItem('irc_unread_collapsed') === '1'; } catch { return false; } })();
 function loadGroupState() {
   try {
@@ -3462,18 +3463,26 @@ function renderTreeNow() {
     const favSection = document.createElement('div');
     favSection.className = 'tree-section';
     const favLabel = document.createElement('div');
-    favLabel.className = 'tree-section-label fav-label';
+    favLabel.className = 'tree-section-label fav-label' + (favCollapsed ? ' collapsed' : '');
     favLabel.textContent = '\u2605 Favorites';
+    favLabel.title = 'Click to fold or unfold';
+    favLabel.addEventListener('click', () => {
+      favCollapsed = !favCollapsed;
+      try { localStorage.setItem('irc_fav_collapsed', favCollapsed ? '1' : '0'); } catch { /* storage blocked */ }
+      renderTree();
+    });
     favSection.appendChild(favLabel);
 
-    // Starred meta-channel always first
-    if (channels.has(STARRED_CHANNEL)) {
-      favSection.appendChild(createChannelItem(STARRED_CHANNEL));
-    }
+    if (!favCollapsed) {
+      // Starred meta-channel always first
+      if (channels.has(STARRED_CHANNEL)) {
+        favSection.appendChild(createChannelItem(STARRED_CHANNEL));
+      }
 
-    favChans.sort();
-    for (const ch of favChans) {
-      favSection.appendChild(createChannelItem(ch));
+      favChans.sort();
+      for (const ch of favChans) {
+        favSection.appendChild(createChannelItem(ch));
+      }
     }
     treeScroll.appendChild(favSection);
   }
