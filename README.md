@@ -40,6 +40,16 @@ plugin.
 - **Channel bar**: ☆ Star adds or removes the talkgroup from Starred without leaving the channel. With control access and
   Sync on, ✎ beside the description edits it (the talkgroup file's Description column; it comes back as the
   recorder's own edit, so other browsers see it too).
+- **Talkgroup details**: click the channel name for a popup with the talkgroup's file cells, counts and state. The
+  name can be edited here (kept in the browser, and sent to the recorder with Sync on); description, tag and group are the
+  recorder's talkgroup-file cells, so they are editable with control access and Sync on. Tag and Group are dropdowns of the
+  values already in use, with *+ Add new...*, which asks for the value and then confirms it.
+- **Name colors**: the popup, or the swatch that shows when you hover a channel row, colors a channel's name (kept in the
+  browser). Fire talkgroups are red and law blue by default, from the talkgroup file's Tag. The swatches are the IBM Carbon
+  categorical palette, a set for light themes and one for dark themes; a saved choice shows as the same slot in either.
+- **Options** (title bar, or the ⋯ menu on a phone): *Label colors by tag* colors every talkgroup with that tag (a
+  channel's own color wins over its tag's, which wins over the automatic ones); *Transcript server* sets the address
+  (same as `/api`); *Back up / move settings* exports this browser's choices to a JSON file and imports them elsewhere.
 - **Commands**: `/join`, `/part`, `/list`, `/who`, `/whois`, `/topic`, `/fav`, `/scan`,
   `/scanner`, `/listen`, `/volume`, `/sync`, `/ignore`, `/unignore`, `/ops`, `/readall`, `/clear`, `/reconnect`, `/api`, `/stats`, `/nerd`, `/help`.
 - The theme picker at the top switches between the themes (Ctrl+Shift+T cycles them; `?theme=matrix` in the address picks one, kept like a pick). Your own themes go in a `theme-local.js` beside `index.html`, which an upgrade never touches; [theme-local.example.js](https://github.com/trunk-reporter/trp-themes/blob/main/theme-local.example.js) is one to copy. The themes are [trp-themes](https://github.com/trunk-reporter/trp-themes) 1.0.0's, pared to the variables this page uses, with the default written into the page so it is styled before (or without) the engine; `node pare.mjs <this folder>` there refreshes them.
