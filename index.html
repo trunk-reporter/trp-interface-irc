@@ -884,6 +884,13 @@ body::after {
 .tg-field-input:focus { outline: none; border-color: var(--irc-info); }
 .tg-field-input:disabled { background: transparent; border-color: transparent; color: var(--text-muted); padding-left: 0; }
 .tg-field-status { font-size: 11px; min-width: 14px; }
+.opt-hint { padding: 0 20px 8px; font-size: 11px; color: var(--text-faint); }
+.opt-list { overflow-y: auto; padding: 0 20px 14px; display: flex; flex-direction: column; gap: 6px; }
+.opt-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.opt-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-hover, var(--border)); cursor: pointer; padding: 0; flex-shrink: 0; }
+.opt-dot.none { background: repeating-linear-gradient(45deg, transparent 0 4px, var(--border) 4px 5px); }
+.opt-name { font-weight: 500; }
+.opt-count { margin-left: auto; font-size: 11px; color: var(--text-faint); }
 .tg-edit-note { grid-column: 1 / -1; font-size: 11px; color: var(--text-faint); }
 .unit-modal-meta-value { color: var(--text-muted); font-family: inherit; font-size: 11px; }
 .unit-modal-section {
@@ -1170,7 +1177,7 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
 
   /* One top bar: ☰ · dot · channel ▾ · LISTEN · 👥 · ⋯ */
   .titlebar { height: 48px; padding: 0 4px; gap: 2px; }
-  .titlebar .server, .titlebar .tb-dash, .titlebar #titlebar-edit-btn, .titlebar #sync-btn { display: none !important; }
+  .titlebar .server, .titlebar .tb-dash, .titlebar #titlebar-edit-btn, .titlebar #sync-btn, .titlebar #opts-btn { display: none !important; }
   .mobile-hamburger { width: 44px; height: 44px; flex: 0 0 44px; }
   .tb-dot { display: block; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; margin-right: 6px; background: var(--danger); }
   .tb-dot.connected { background: var(--success); }
@@ -1314,6 +1321,7 @@ html.nerd .statusbar .nerd-btn { font-size: 9px; }
   <button class="mobile-hamburger mobile-users-btn" id="mobile-users-btn" aria-label="Open users">👥</button>
   <span class="lag" id="titlebar-lag"></span>
   <button class="listen-btn" id="sync-btn" disabled>SYNC n/a</button>
+  <button class="listen-btn" id="opts-btn" title="Options: label colors by tag">&#9881; OPTIONS</button>
   <span class="listen-ctl" id="listen-ctl">
     <button class="listen-btn" id="listen-btn" title="Listen live: hear the calls as they happen (the mode picks which channels)"><svg class="listen-glyph" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M2 10V8a6 6 0 0 1 12 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="1.5" y="9" width="3" height="5" rx="1" fill="currentColor"/><rect x="11.5" y="9" width="3" height="5" rx="1" fill="currentColor"/></svg><span id="listen-label">LISTEN</span><span class="listen-count" id="listen-count"></span></button>
     <select class="listen-mode" id="listen-mode" title="What to hear live">
@@ -2015,13 +2023,34 @@ function chanColorKey(chanName) {
   const ch = channels.get(chanName);
   return ch ? `${ch.system_id}:${ch.tgid}` : null;
 }
-function explicitChanColor(chanName) {
-  const k = chanColorKey(chanName);
-  const c = k && chanColors[k];
+/** A saved color as shown now: a palette color becomes the same slot of the current theme's set; anything else stays. */
+function resolveSavedColor(c) {
   if (typeof c !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(c)) return null;
   const lc = c.toLowerCase();
   const slot = CHAN_PALETTE_LIGHT.indexOf(lc) >= 0 ? CHAN_PALETTE_LIGHT.indexOf(lc) : CHAN_PALETTE_DARK.indexOf(lc);
   return slot >= 0 ? chanPalette()[slot] : c;
+}
+function explicitChanColor(chanName) {
+  const k = chanColorKey(chanName);
+  return resolveSavedColor(k && chanColors[k]);
+}
+// Colors by tag (the talkgroup file's Tag column): browser-local, key = the tag in lower case.
+let tagColors = (() => {
+  try { const o = JSON.parse(localStorage.getItem('irc_tag_colors') || '{}'); return (o && typeof o === 'object') ? o : {}; }
+  catch { return {}; }
+})();
+const tagColorKey = (tag) => String(tag || '').trim().toLowerCase();
+function explicitTagColor(tag) { const k = tagColorKey(tag); return k ? resolveSavedColor(tagColors[k]) : null; }
+function setTagColor(tag, color) {
+  const k = tagColorKey(tag);
+  if (!k) return;
+  if (color) tagColors[k] = color; else delete tagColors[k];
+  try { localStorage.setItem('irc_tag_colors', JSON.stringify(tagColors)); } catch { /* storage blocked */ }
+  renderTree();
+}
+function chanTagColor(chanName) {
+  const ch = channels.get(chanName);
+  return ch && ch.tgid ? explicitTagColor(ch.tag) : null;
 }
 /** Fire talkgroups red, law (PD) blue, from the talkgroup file's Tag (fallback: FD / PD in the name). */
 function autoChanColor(chanName) {
@@ -2033,7 +2062,8 @@ function autoChanColor(chanName) {
   if (/^law/i.test(tag) || /(^|[\s-])PD(\b|$)/i.test(name)) return '#3b82f6';
   return null;
 }
-function getChanColor(chanName) { return explicitChanColor(chanName) || autoChanColor(chanName); }
+/** This channel's color wins, then its tag's, then the automatic fire/law one. */
+function getChanColor(chanName) { return explicitChanColor(chanName) || chanTagColor(chanName) || autoChanColor(chanName); }
 function setChanColor(chanName, color) {
   const k = chanColorKey(chanName);
   if (!k) return;
@@ -2041,19 +2071,17 @@ function setChanColor(chanName, color) {
   try { localStorage.setItem('irc_chan_colors', JSON.stringify(chanColors)); } catch { /* storage blocked */ }
   renderTree();
 }
-/** Swatches + custom picker + reset for one channel; onDone runs after a change. */
-function buildChanColorControls(chanName, onDone) {
+/** Swatches + custom picker + reset. o: { cur (saved color or null), eff (shown color), resetLabel, set(color|null) }; onDone runs after a change. */
+function buildColorControls(o, onDone) {
   const wrap = document.createElement('div');
-  const cur = explicitChanColor(chanName);
-  const eff = getChanColor(chanName);
   const grid = document.createElement('div');
   grid.className = 'sw-grid';
   for (const c of chanPalette()) {
     const b = document.createElement('button');
-    b.className = 'sw' + (c === eff ? ' on' : '');
+    b.className = 'sw' + (c === o.eff ? ' on' : '');
     b.style.background = c;
     b.title = c;
-    b.addEventListener('click', () => { setChanColor(chanName, c); onDone(); });
+    b.addEventListener('click', () => { o.set(c); onDone(); });
     grid.appendChild(b);
   }
   wrap.appendChild(grid);
@@ -2061,23 +2089,37 @@ function buildChanColorControls(chanName, onDone) {
   row.className = 'row';
   const pick = document.createElement('input');
   pick.type = 'color';
-  pick.value = eff || '#3b82f6';
+  pick.value = o.eff || '#3b82f6';
   pick.title = 'Custom color';
-  pick.addEventListener('change', () => { setChanColor(chanName, pick.value); onDone(); });
+  pick.addEventListener('change', () => { o.set(pick.value); onDone(); });
   const reset = document.createElement('button');
   reset.className = 'reset';
-  reset.textContent = cur ? (autoChanColor(chanName) ? 'Back to auto' : 'Reset') : 'Auto';
-  reset.disabled = !cur;
-  reset.addEventListener('click', () => { setChanColor(chanName, null); onDone(); });
+  reset.textContent = o.resetLabel;
+  reset.disabled = !o.cur;
+  reset.addEventListener('click', () => { o.set(null); onDone(); });
   row.append(pick, reset);
   wrap.appendChild(row);
   return wrap;
+}
+function buildChanColorControls(chanName, onDone) {
+  const cur = explicitChanColor(chanName);
+  return buildColorControls({
+    cur, eff: getChanColor(chanName),
+    resetLabel: cur ? (chanTagColor(chanName) ? 'Use tag color' : autoChanColor(chanName) ? 'Back to auto' : 'Reset') : 'Auto',
+    set: (c) => setChanColor(chanName, c),
+  }, onDone);
+}
+function buildTagColorControls(tag, onDone) {
+  const cur = explicitTagColor(tag);
+  return buildColorControls({ cur, eff: cur, resetLabel: 'Reset', set: (c) => setTagColor(tag, c) }, onDone);
 }
 // A light/dark theme switch changes which palette a swatch shows: redraw the tree, the popup and the open modal.
 window.addEventListener('themechange', () => {
   closeChanColorPop();
   renderTree();
   if (tgModalChan && channels.has(tgModalChan)) openTgModal(tgModalChan);
+  const om = document.getElementById('opts-modal');
+  if (om && om.classList.contains('visible')) openOptions();
 });
 function closeChanColorPop() {
   const p = document.getElementById('chan-color-pop');
@@ -2088,12 +2130,12 @@ function onChanColorOutside(e) {
   const p = document.getElementById('chan-color-pop');
   if (p && !p.contains(e.target)) closeChanColorPop();
 }
-function openChanColorPop(chanName, anchor) {
+function openColorPop(anchor, build) {
   closeChanColorPop();
   const pop = document.createElement('div');
   pop.id = 'chan-color-pop';
   pop.className = 'chan-color-pop';
-  pop.appendChild(buildChanColorControls(chanName, closeChanColorPop));
+  pop.appendChild(build(closeChanColorPop));
   document.body.appendChild(pop);
   const r = anchor.getBoundingClientRect();
   const w = pop.offsetWidth, h = pop.offsetHeight;
@@ -2101,6 +2143,92 @@ function openChanColorPop(chanName, anchor) {
   pop.style.top = Math.max(4, Math.min(r.bottom + 4, window.innerHeight - h - 4)) + 'px';
   setTimeout(() => document.addEventListener('mousedown', onChanColorOutside, true), 0);
 }
+function openChanColorPop(chanName, anchor) {
+  openColorPop(anchor, (done) => buildChanColorControls(chanName, done));
+}
+
+// ── Options (the title bar's OPTIONS button, and the ⋯ sheet on a phone) ──
+function closeOptions() {
+  const m = document.getElementById('opts-modal');
+  if (m) m.classList.remove('visible');
+  closeChanColorPop();
+}
+/** Every tag in use in the talkgroup files, case-folded: [{ tag, count }], sorted. */
+function allTags() {
+  const seen = new Map();
+  for (const sys of systemNames.keys()) {
+    for (const t of rec.talkgroups(sys).values()) {
+      const tag = String(t.tag || '').trim();
+      if (!tag) continue;
+      const k = tagColorKey(tag);
+      const e = seen.get(k) || { tag, count: 0 };
+      e.count++;
+      seen.set(k, e);
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.tag.localeCompare(b.tag, undefined, { sensitivity: 'base' }));
+}
+function openOptions() {
+  let m = document.getElementById('opts-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'opts-modal';
+    m.className = 'unit-modal';
+    m.addEventListener('click', (e) => { if (e.target === m) closeOptions(); });
+    document.body.appendChild(m);
+  }
+  m.textContent = '';
+  const box = document.createElement('div');
+  box.className = 'unit-modal-box';
+  const close = document.createElement('button');
+  close.className = 'unit-modal-close';
+  close.innerHTML = '&times;';
+  close.addEventListener('click', closeOptions);
+  box.appendChild(close);
+  const head = document.createElement('div');
+  head.className = 'unit-modal-header';
+  const title = document.createElement('span'); title.className = 'unit-modal-uid'; title.textContent = 'Options';
+  head.appendChild(title);
+  box.appendChild(head);
+  const sec = document.createElement('div');
+  sec.className = 'unit-modal-section';
+  const lab = document.createElement('div');
+  lab.className = 'unit-modal-section-label';
+  lab.textContent = 'Label colors by tag (this browser)';
+  sec.appendChild(lab);
+  const hint = document.createElement('div');
+  hint.className = 'opt-hint';
+  hint.textContent = 'Colors every talkgroup with that tag. A color set on one channel wins over its tag color, which wins over the automatic fire/law colors.';
+  sec.appendChild(hint);
+  const list = document.createElement('div');
+  list.className = 'opt-list';
+  const tags = allTags();
+  if (!tags.length) { const n = document.createElement('div'); n.className = 'opt-hint'; n.textContent = 'No tags yet: the talkgroup files have not loaded.'; list.appendChild(n); }
+  for (const { tag, count } of tags) {
+    const cur = explicitTagColor(tag);
+    const row = document.createElement('div');
+    row.className = 'opt-row';
+    const dot = document.createElement('button');
+    dot.className = 'opt-dot' + (cur ? '' : ' none');
+    if (cur) dot.style.background = cur;
+    dot.title = 'Pick a color for ' + tag;
+    dot.addEventListener('click', () => openColorPop(dot, (done) => buildTagColorControls(tag, () => { done(); openOptions(); })));
+    const name = document.createElement('span'); name.className = 'opt-name'; name.textContent = tag;
+    if (cur) name.style.color = cur;
+    const n = document.createElement('span'); n.className = 'opt-count'; n.textContent = count + (count === 1 ? ' talkgroup' : ' talkgroups');
+    row.append(dot, name, n);
+    list.appendChild(row);
+  }
+  sec.appendChild(list);
+  box.appendChild(sec);
+  m.appendChild(box);
+  m.classList.add('visible');
+}
+document.getElementById('opts-btn').addEventListener('click', openOptions);
+document.addEventListener('keydown', (e) => {
+  const m = document.getElementById('opts-modal');
+  if (e.key === 'Escape' && m && m.classList.contains('visible')) closeOptions();
+});
 
 // ── Talkgroup detail modal (click the channel name in the top bar) ──
 let tgModalChan = null;
@@ -2232,7 +2360,7 @@ function openTgModal(chanName) {
     ['Favorite', isFavorite(chanName) ? 'yes' : 'no'],
     ['Scanner', isScanned(chanName) ? 'in scanner' : 'no'],
     ['Ignored', [isIgnoredLocal(chanName) && 'here', isIgnoredRecorder(chanName) && 'on recorder'].filter(Boolean).join(' + ') || 'no'],
-    ['Name color', explicitChanColor(chanName) ? 'custom ' + explicitChanColor(chanName) : (autoChanColor(chanName) ? 'auto ' + autoChanColor(chanName) : 'default')],
+    ['Name color', explicitChanColor(chanName) ? 'custom ' + explicitChanColor(chanName) : chanTagColor(chanName) ? 'from tag ' + chanTagColor(chanName) : (autoChanColor(chanName) ? 'auto ' + autoChanColor(chanName) : 'default')],
   ];
   m.textContent = '';
   const box = document.createElement('div');
@@ -6257,6 +6385,7 @@ function openMenuSheet() {
   const box = document.getElementById('menu-sheet-actions');
   box.textContent = '';
   box.append(proxyButton(document.getElementById('sync-btn')));
+  box.append(sheetButton('\u2699 Options', openOptions));
   box.append(sheetButton('🔍 Search transcripts', () => { openDrawer('channels'); gsInput.focus(); }));
   box.append(proxyButton(document.getElementById('scanner-btn'), scannerEnabled ? 'Scanner mode: on' : 'Scanner mode: off'));
   const themes = document.getElementById('sheet-themes');
